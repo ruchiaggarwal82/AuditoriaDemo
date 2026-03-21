@@ -81,6 +81,9 @@ async def poll_and_process():
                 invoice_id = None
                 confidence = 0.0
 
+                # Mark as read immediately so a processing crash never causes re-processing
+                await gmail_service.mark_as_read(email["id"])
+
                 classification = {}
                 try:
                     classification = claude_service.classify_intent(
@@ -131,7 +134,6 @@ async def poll_and_process():
                         except Exception as slack_err:
                             print(f"Slack error: {slack_err}")
 
-                    await gmail_service.mark_as_read(email["id"])
                     _emails_processed_today += 1
 
                 except Exception as proc_err:

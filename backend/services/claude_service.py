@@ -146,7 +146,14 @@ def _call_claude(prompt: str) -> dict:
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
-    return json.loads(raw.strip())
+    raw = raw.strip()
+    # Fallback: find the JSON object by { } boundaries
+    if not raw.startswith("{"):
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start >= 0 and end > start:
+            raw = raw[start:end]
+    return json.loads(raw)
 
 
 def classify_intent(email_subject: str, email_body: str) -> dict:
