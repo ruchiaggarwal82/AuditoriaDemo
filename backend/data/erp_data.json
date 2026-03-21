@@ -1,0 +1,56 @@
+{
+  "invoices": [
+    {
+      "invoice_id": "INV-2024-1042",
+      "supplier_name": "Acme Supplies Co",
+      "supplier_email": "ap@acmesupplies.com",
+      "amount": 12500.00,
+      "currency": "USD",
+      "status": "scheduled",
+      "payment_date": "2024-03-28",
+      "payment_method": "ACH",
+      "due_date": "2024-03-25",
+      "po_number": "PO-8821",
+      "notes": ""
+    },
+    {
+      "invoice_id": "INV-2024-1039",
+      "supplier_name": "Global Tech Parts",
+      "supplier_email": "billing@globaltechparts.com",
+      "amount": 8750.00,
+      "currency": "USD",
+      "status": "paid",
+      "payment_date": "2024-03-18",
+      "payment_method": "Wire",
+      "due_date": "2024-03-18",
+      "po_number": "PO-8798",
+      "notes": "Paid in full"
+    },
+    {
+      "invoice_id": "INV-2024-1051",
+      "supplier_name": "Metro Office Solutions",
+      "supplier_email": "invoices@metroofficeinc.com",
+      "amount": 45000.00,
+      "currency": "USD",
+      "status": "on_hold",
+      "payment_date": null,
+      "payment_method": "ACH",
+      "due_date": "2024-03-22",
+      "po_number": "PO-8834",
+      "notes": "On hold pending 3-way match discrepancy review"
+    },
+    {
+      "invoice_id": "INV-2024-1038",
+      "supplier_name": "FastShip Logistics",
+      "supplier_email": "ar@fastshiplogistics.com",
+      "amount": 3200.00,
+      "currency": "USD",
+      "status": "short_paid",
+      "payment_date": "2024-03-15",
+      "payment_method": "ACH",
+      "due_date": "2024-03-15",
+      "po_number": "PO-8791",
+      "notes": "Short paid by $450 due to freight damage deduction per contract clause 8.2"
+    }
+  ]
+}

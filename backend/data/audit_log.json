@@ -1,0 +1,19 @@
+[
+  {
+    "entry_id": "audit-001",
+    "timestamp": "2024-03-20T14:23:11Z",
+    "email_from": "ap@acmesupplies.com",
+    "email_subject": "Invoice INV-2024-1042 payment status",
+    "intent_classified": "PAYMENT_STATUS",
+    "confidence": 0.96,
+    "invoice_found": true,
+    "invoice_id": "INV-2024-1042",
+    "outcome": "AUTONOMOUS",
+    "response_sent": true,
+    "escalated_to_slack": false,
+    "escalation_reason": null,
+    "processing_time_ms": 1840,
+    "feedback": null,
+    "feedback_note": null
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "worker_id": "worker-001",
+    "name": "Supplier Payment Inquiries",
+    "description": "Automatically handles supplier questions about payment status, invoice approvals, and remittance details.",
+    "status": "active",
+    "created_at": "2024-03-20T10:00:00Z",
+    "workflow_steps": [],
+    "participants": [],
+    "policies": [],
+    "templates": []
+  }
+]
