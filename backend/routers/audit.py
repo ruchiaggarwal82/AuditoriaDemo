@@ -27,6 +27,12 @@ class FeedbackRequest(BaseModel):
     note: str = ""
 
 
+class EscalationFeedbackRequest(BaseModel):
+    entry_id: str
+    escalation_feedback: str  # "justified" or "should_have_automated"
+    escalation_feedback_note: str = ""
+
+
 @router.get("/log")
 def get_log(limit: int = Query(50, ge=1, le=500), offset: int = Query(0, ge=0)):
     log = _load_log()
@@ -47,5 +53,21 @@ def record_feedback(req: FeedbackRequest):
             entry["feedback_note"] = req.note
             _save_log(log)
             return {"status": "feedback_recorded"}
+
+    raise HTTPException(status_code=404, detail="Audit entry not found")
+
+
+@router.post("/escalation-feedback")
+def record_escalation_feedback(req: EscalationFeedbackRequest):
+    if req.escalation_feedback not in ("justified", "should_have_automated"):
+        raise HTTPException(status_code=400, detail="escalation_feedback must be 'justified' or 'should_have_automated'")
+
+    log = _load_log()
+    for entry in log:
+        if entry["entry_id"] == req.entry_id:
+            entry["escalation_feedback"] = req.escalation_feedback
+            entry["escalation_feedback_note"] = req.escalation_feedback_note
+            _save_log(log)
+            return {"status": "escalation_feedback_recorded"}
 
     raise HTTPException(status_code=404, detail="Audit entry not found")

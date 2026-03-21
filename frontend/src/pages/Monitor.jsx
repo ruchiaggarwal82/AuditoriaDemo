@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, RefreshCw, Mail, ChevronRight } from 'lucide-react'
+import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
@@ -17,6 +17,25 @@ export default function Monitor() {
   const [recent, setRecent] = useState([])
   const [selected, setSelected] = useState(null)
   const [toggling, setToggling] = useState(false)
+  const [feedbackState, setFeedbackState] = useState({}) // entry_id -> {submitted, type, showNegForm, note}
+
+  const submitFeedback = async (entry_id, feedback, note = '') => {
+    await fetch('/api/audit/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id, feedback, note }),
+    })
+    setFeedbackState((prev) => ({ ...prev, [entry_id]: { submitted: true, type: feedback, note } }))
+  }
+
+  const submitEscalationFeedback = async (entry_id, escalation_feedback, note = '') => {
+    await fetch('/api/audit/escalation-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id, escalation_feedback, escalation_feedback_note: note }),
+    })
+    setFeedbackState((prev) => ({ ...prev, [entry_id]: { submitted: true, type: escalation_feedback, note } }))
+  }
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -173,6 +192,102 @@ export default function Monitor() {
                     {selected.escalation_reason}
                   </p>
                 )}
+              </div>
+
+              {/* Inline feedback */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">AP Clerk Feedback</p>
+                {(() => {
+                  const fb = feedbackState[selected.entry_id]
+                  if (fb?.submitted) {
+                    return (
+                      <p className={`text-xs font-medium px-3 py-2 rounded-lg ${
+                        fb.type === 'positive' || fb.type === 'justified'
+                          ? 'bg-teal-50 text-teal-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        Feedback recorded — thank you!
+                      </p>
+                    )
+                  }
+
+                  if (selected.outcome === 'ESCALATED') {
+                    return (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-3">Was this escalation correct?</p>
+                        {fb?.showNegForm ? (
+                          <div className="space-y-2">
+                            <input
+                              value={fb.note || ''}
+                              onChange={(ev) => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { ...p[selected.entry_id], note: ev.target.value } }))}
+                              placeholder="What should the digital worker have done instead?"
+                              className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => submitEscalationFeedback(selected.entry_id, 'should_have_automated', fb.note || '')}
+                                className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600"
+                              >Submit</button>
+                              <button
+                                onClick={() => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { ...p[selected.entry_id], showNegForm: false } }))}
+                                className="px-3 py-1.5 text-slate-500 text-xs border border-slate-200 rounded-lg"
+                              >Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => submitEscalationFeedback(selected.entry_id, 'justified')}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-teal-200 text-teal-600 hover:bg-teal-50 transition-colors"
+                            >✓ Escalation justified</button>
+                            <button
+                              onClick={() => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { showNegForm: true } }))}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
+                            >✗ Shouldn't have escalated</button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  // Autonomous — response quality
+                  return (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-3">How was the automated response?</p>
+                      {fb?.showNegForm ? (
+                        <div className="space-y-2">
+                          <input
+                            value={fb.note || ''}
+                            onChange={(ev) => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { ...p[selected.entry_id], note: ev.target.value } }))}
+                            placeholder="What was wrong with the response?"
+                            className="w-full text-xs border border-red-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => submitFeedback(selected.entry_id, 'negative', fb.note || '')}
+                              className="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600"
+                            >Submit</button>
+                            <button
+                              onClick={() => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { ...p[selected.entry_id], showNegForm: false } }))}
+                              className="px-3 py-1.5 text-slate-500 text-xs border border-slate-200 rounded-lg"
+                            >Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => submitFeedback(selected.entry_id, 'positive')}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-teal-200 text-teal-600 hover:bg-teal-50 transition-colors"
+                          ><ThumbsUp size={12} /> Looks good</button>
+                          <button
+                            onClick={() => setFeedbackState((p) => ({ ...p, [selected.entry_id]: { showNegForm: true } }))}
+                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                          ><ThumbsDown size={12} /> Issue with response</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )}

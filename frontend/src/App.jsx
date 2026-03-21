@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Discover from './pages/Discover'
 import SetupFlow from './pages/Setup/SetupFlow'
 import Monitor from './pages/Monitor'
+import Dashboard from './pages/Dashboard'
 import AuditTrail from './pages/AuditTrail'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/discover" element={<Discover />} />
           <Route path="/setup/*" element={<SetupFlow />} />
           <Route path="/monitor" element={<Monitor />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/audit" element={<AuditTrail />} />
         </Routes>
       </main>

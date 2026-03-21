@@ -26,6 +26,8 @@ export default function AuditTrail() {
   const [expanded, setExpanded] = useState(null)
   const [feedbackOpen, setFeedbackOpen] = useState(null)
   const [feedbackNote, setFeedbackNote] = useState('')
+  const [escFeedbackOpen, setEscFeedbackOpen] = useState(null)
+  const [escFeedbackNote, setEscFeedbackNote] = useState('')
   const [filterOutcome, setFilterOutcome] = useState('all')
   const [filterIntent, setFilterIntent] = useState('all')
 
@@ -47,6 +49,17 @@ export default function AuditTrail() {
     })
     setFeedbackOpen(null)
     setFeedbackNote('')
+    fetchLog()
+  }
+
+  const submitEscalationFeedback = async (entry_id, escalation_feedback, escalation_feedback_note = '') => {
+    await fetch('/api/audit/escalation-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id, escalation_feedback, escalation_feedback_note }),
+    })
+    setEscFeedbackOpen(null)
+    setEscFeedbackNote('')
     fetchLog()
   }
 
@@ -106,7 +119,7 @@ export default function AuditTrail() {
                   <th className="px-5 py-3 text-left">Confidence</th>
                   <th className="px-5 py-3 text-left">ERP Found</th>
                   <th className="px-5 py-3 text-left">Outcome</th>
-                  <th className="px-5 py-3 text-left">Feedback</th>
+                  <th className="px-5 py-3 text-left">Quality Feedback</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -139,26 +152,51 @@ export default function AuditTrail() {
                       <td className="px-5 py-3.5">
                         <StatusBadge type={e.outcome?.toLowerCase()} />
                       </td>
-                      <td className="px-5 py-3.5">
-                        {e.feedback ? (
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${e.feedback === 'positive' ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
-                            {e.feedback === 'positive' ? '👍' : '👎'} {e.feedback}
-                          </span>
+                      <td className="px-5 py-3.5" onClick={(ev) => ev.stopPropagation()}>
+                        {e.outcome === 'ESCALATED' ? (
+                          /* Escalation quality feedback */
+                          e.escalation_feedback ? (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${e.escalation_feedback === 'justified' ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-700'}`}>
+                              {e.escalation_feedback === 'justified' ? '✓ Justified' : '✗ Should automate'}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => submitEscalationFeedback(e.entry_id, 'justified')}
+                                className="text-xs px-2 py-1 rounded border border-teal-200 text-teal-600 hover:bg-teal-50 transition-colors"
+                              >
+                                ✓ Justified
+                              </button>
+                              <button
+                                onClick={() => setEscFeedbackOpen(escFeedbackOpen === e.entry_id ? null : e.entry_id)}
+                                className="text-xs px-2 py-1 rounded border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
+                              >
+                                ✗ Shouldn't escalate
+                              </button>
+                            </div>
+                          )
                         ) : (
-                          <div className="flex items-center gap-1.5" onClick={(ev) => ev.stopPropagation()}>
-                            <button
-                              onClick={() => submitFeedback(e.entry_id, 'positive')}
-                              className="p-1 rounded text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
-                            >
-                              <ThumbsUp size={14} />
-                            </button>
-                            <button
-                              onClick={() => setFeedbackOpen(feedbackOpen === e.entry_id ? null : e.entry_id)}
-                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            >
-                              <ThumbsDown size={14} />
-                            </button>
-                          </div>
+                          /* Response quality feedback */
+                          e.feedback ? (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${e.feedback === 'positive' ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
+                              {e.feedback === 'positive' ? '👍' : '👎'} {e.feedback}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => submitFeedback(e.entry_id, 'positive')}
+                                className="p-1 rounded text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+                              >
+                                <ThumbsUp size={14} />
+                              </button>
+                              <button
+                                onClick={() => setFeedbackOpen(feedbackOpen === e.entry_id ? null : e.entry_id)}
+                                className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              >
+                                <ThumbsDown size={14} />
+                              </button>
+                            </div>
+                          )
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-slate-400">
@@ -208,6 +246,37 @@ export default function AuditTrail() {
                       </tr>
                     )}
 
+                    {/* Escalation "shouldn't escalate" feedback form */}
+                    {escFeedbackOpen === e.entry_id && (
+                      <tr key={`escfb-${e.entry_id}`}>
+                        <td colSpan={8} className="px-5 pb-3 pt-0 bg-amber-50">
+                          <div className="border border-amber-200 rounded-lg p-4">
+                            <p className="text-xs font-semibold text-amber-700 mb-2">What should the digital worker have done?</p>
+                            <div className="flex gap-2">
+                              <input
+                                value={escFeedbackNote}
+                                onChange={(ev) => setEscFeedbackNote(ev.target.value)}
+                                placeholder="e.g. Invoice was in ERP under different reference, DW should have responded autonomously"
+                                className="flex-1 text-xs border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                              />
+                              <button
+                                onClick={() => submitEscalationFeedback(e.entry_id, 'should_have_automated', escFeedbackNote)}
+                                className="px-3 py-2 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600"
+                              >
+                                Submit
+                              </button>
+                              <button
+                                onClick={() => setEscFeedbackOpen(null)}
+                                className="px-3 py-2 text-slate-500 text-xs border border-slate-200 rounded-lg"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
                     {/* Expanded row */}
                     {expanded === e.entry_id && (
                       <tr key={`exp-${e.entry_id}`}>
@@ -235,6 +304,12 @@ export default function AuditTrail() {
                               <div className="col-span-3">
                                 <p className="font-semibold text-slate-500 mb-1">Feedback note</p>
                                 <p className="text-red-700">{e.feedback_note}</p>
+                              </div>
+                            )}
+                            {e.escalation_feedback_note && (
+                              <div className="col-span-3">
+                                <p className="font-semibold text-slate-500 mb-1">Escalation feedback note</p>
+                                <p className="text-amber-700">{e.escalation_feedback_note}</p>
                               </div>
                             )}
                           </div>
