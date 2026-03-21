@@ -169,10 +169,13 @@ def classify_intent(email_subject: str, email_body: str) -> dict:
 
 
 def generate_response(inquiry: str, erp_data: dict, policies: list) -> dict:
-    prompt = RESPONSE_GENERATION_PROMPT.format(
-        inquiry=inquiry,
-        erp_data=json.dumps(erp_data, indent=2),
-        policies=json.dumps(policies, indent=2),
+    # Use .replace() instead of .format() because the prompt contains literal
+    # JSON braces { } that would be misinterpreted as format placeholders.
+    prompt = (
+        RESPONSE_GENERATION_PROMPT
+        .replace("{inquiry}", inquiry)
+        .replace("{erp_data}", json.dumps(erp_data, indent=2))
+        .replace("{policies}", json.dumps(policies, indent=2))
     )
     return _call_claude(prompt)
 
