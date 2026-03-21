@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import WorkflowMap from './WorkflowMap'
@@ -26,11 +26,64 @@ export default function SetupFlow() {
   const [launching, setLaunching] = useState(false)
   const navigate = useNavigate()
 
+  // Load existing worker config on mount — skip to Review if already configured
+  useEffect(() => {
+    fetch('/api/workflow/workers')
+      .then((r) => r.json())
+      .then((workers) => {
+        const worker = workers.find((w) => w.worker_id === 'worker-001')
+        if (worker?.workflow_steps?.length > 0) {
+          setWorkflowData({
+            workflow_name: worker.workflow_name || 'Supplier Payment Inquiry Handling',
+            steps: worker.workflow_steps,
+            gaps_identified: worker.gaps_identified || [],
+          })
+          setParticipants(worker.participants || [])
+          setPolicies(worker.policies || [])
+          setTemplates(worker.templates || [])
+          setCurrentStep(5)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const goNext = () => setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1))
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 0))
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     setLaunching(true)
+    const WORKER_ID = 'worker-001'
+    try {
+      await Promise.all([
+        fetch('/api/workflow/save-workflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            worker_id: WORKER_ID,
+            workflow_name: workflowData?.workflow_name || 'Supplier Payment Inquiry Handling',
+            steps: workflowData?.steps || [],
+            gaps_identified: workflowData?.gaps_identified || [],
+          }),
+        }),
+        fetch('/api/workflow/save-participants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ worker_id: WORKER_ID, participants }),
+        }),
+        fetch('/api/workflow/save-policies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ worker_id: WORKER_ID, policies }),
+        }),
+        fetch('/api/workflow/save-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ worker_id: WORKER_ID, templates }),
+        }),
+      ])
+    } catch (e) {
+      console.error('Failed to save worker config:', e)
+    }
     setTimeout(() => navigate('/monitor'), 2500)
   }
 

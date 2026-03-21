@@ -30,6 +30,16 @@ class SaveParticipantsRequest(BaseModel):
     participants: list
 
 
+class SavePoliciesRequest(BaseModel):
+    worker_id: str
+    policies: list
+
+
+class SaveTemplatesRequest(BaseModel):
+    worker_id: str
+    templates: list
+
+
 @router.get("/workers")
 def get_workers():
     return _load_workers()
@@ -58,6 +68,34 @@ def save_participants(req: SaveParticipantsRequest):
         for w in workers:
             if w["worker_id"] == req.worker_id:
                 w["participants"] = req.participants
+                break
+        _save_workers(workers)
+        return {"status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/save-policies")
+def save_policies(req: SavePoliciesRequest):
+    try:
+        workers = _load_workers()
+        for w in workers:
+            if w["worker_id"] == req.worker_id:
+                w["policies"] = req.policies
+                break
+        _save_workers(workers)
+        return {"status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/save-templates")
+def save_templates(req: SaveTemplatesRequest):
+    try:
+        workers = _load_workers()
+        for w in workers:
+            if w["worker_id"] == req.worker_id:
+                w["templates"] = req.templates
                 break
         _save_workers(workers)
         return {"status": "saved"}

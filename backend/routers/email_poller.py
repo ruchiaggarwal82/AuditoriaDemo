@@ -17,6 +17,7 @@ _poll_task: asyncio.Task | None = None
 
 AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "audit_log.json")
 ERP_DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "erp_data.json")
+RECENT_EMAILS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "recent_emails.json")
 
 
 def _load_erp_data() -> list[dict]:
@@ -35,6 +36,19 @@ def _lookup_erp(invoice_reference: str | None) -> dict | None:
         if ref in inv_id or inv_id in ref or (po and (ref in po or po in ref)):
             return inv
     return None
+
+
+def _load_recent_emails() -> list[dict]:
+    try:
+        with open(RECENT_EMAILS_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _save_recent_emails():
+    with open(RECENT_EMAILS_PATH, "w") as f:
+        json.dump(_recent_emails, f, indent=2)
 
 
 def _append_audit(entry: dict):
@@ -67,6 +81,7 @@ async def poll_and_process():
                 invoice_id = None
                 confidence = 0.0
 
+                classification = {}
                 try:
                     classification = claude_service.classify_intent(
                         email["subject"], email["body"]
@@ -129,7 +144,7 @@ async def poll_and_process():
                     "timestamp": _last_checked,
                     "email_from": email["from"],
                     "email_subject": email["subject"],
-                    "intent_classified": classification.get("intent", "UNKNOWN") if "classification" in dir() else "UNKNOWN",
+                    "intent_classified": classification.get("intent", "UNKNOWN"),
                     "confidence": confidence,
                     "invoice_found": invoice_found,
                     "invoice_id": invoice_id,
@@ -157,6 +172,7 @@ async def poll_and_process():
                 }
                 _recent_emails.insert(0, recent_entry)
                 _recent_emails = _recent_emails[:10]
+                _save_recent_emails()
 
         except Exception as outer_err:
             print(f"Poll loop error: {outer_err}")
@@ -194,4 +210,7 @@ async def stop_polling():
 
 @router.get("/recent")
 def get_recent():
+    global _recent_emails
+    if not _recent_emails:
+        _recent_emails = _load_recent_emails()
     return _recent_emails
