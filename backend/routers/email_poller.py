@@ -218,4 +218,22 @@ def get_recent():
     global _recent_emails
     if not _recent_emails:
         _recent_emails = _load_recent_emails()
-    return _recent_emails
+
+    # Merge feedback fields from audit log
+    try:
+        with open(AUDIT_LOG_PATH) as f:
+            audit_log = json.load(f)
+        audit_by_id = {e["entry_id"]: e for e in audit_log}
+        enriched = []
+        for email in _recent_emails:
+            audit = audit_by_id.get(email["entry_id"], {})
+            enriched.append({
+                **email,
+                "feedback": audit.get("feedback"),
+                "feedback_note": audit.get("feedback_note"),
+                "escalation_feedback": audit.get("escalation_feedback"),
+                "escalation_feedback_note": audit.get("escalation_feedback_note"),
+            })
+        return enriched
+    except (FileNotFoundError, json.JSONDecodeError):
+        return _recent_emails

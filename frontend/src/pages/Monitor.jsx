@@ -45,6 +45,19 @@ export default function Monitor() {
       ])
       setStatus(s)
       setRecent(r)
+      // Seed feedbackState from persisted audit data
+      setFeedbackState((prev) => {
+        const next = { ...prev }
+        r.forEach((email) => {
+          if (!next[email.entry_id]?.submitted) {
+            const fb = email.escalation_feedback || email.feedback
+            if (fb) {
+              next[email.entry_id] = { submitted: true, type: fb }
+            }
+          }
+        })
+        return next
+      })
     } catch {}
   }, [])
 
