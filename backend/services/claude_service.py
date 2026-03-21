@@ -141,19 +141,26 @@ def _call_claude(prompt: str) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
     raw = message.content[0].text.strip()
+    print(f"[claude_service] raw response (first 300 chars): {repr(raw[:300])}")
+
     # Strip markdown code fences if present
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
     raw = raw.strip()
-    # Fallback: find the JSON object by { } boundaries
+
+    # Find the JSON object by { } boundaries (handles preamble/trailing text)
     if not raw.startswith("{"):
         start = raw.find("{")
         end = raw.rfind("}") + 1
         if start >= 0 and end > start:
             raw = raw[start:end]
-    return json.loads(raw)
+
+    result = json.loads(raw)
+    if not isinstance(result, dict):
+        raise ValueError(f"Expected JSON object, got {type(result).__name__}: {repr(raw[:100])}")
+    return result
 
 
 def classify_intent(email_subject: str, email_body: str) -> dict:

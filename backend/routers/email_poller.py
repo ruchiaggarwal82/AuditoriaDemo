@@ -105,12 +105,15 @@ async def poll_and_process():
                         response = claude_service.generate_response(
                             email["body"], erp_data, []
                         )
-                        if not response.get("requires_human_review"):
+                        print(f"[email_poller] generate_response keys: {list(response.keys())}")
+                        reply_subject = response.get("subject") or f"Re: {email['subject']}"
+                        reply_body = response.get("body", "")
+                        if not response.get("requires_human_review") and reply_body:
                             await gmail_service.send_reply(
                                 thread_id=email["thread_id"],
                                 to=email["from"],
-                                subject=response["subject"],
-                                body=response["body"],
+                                subject=reply_subject,
+                                body=reply_body,
                             )
                             outcome = "AUTONOMOUS"
                             response_sent = True
