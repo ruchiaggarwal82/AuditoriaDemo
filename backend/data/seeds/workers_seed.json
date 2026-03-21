@@ -1,0 +1,89 @@
+[
+  {
+    "worker_id": "worker-001",
+    "name": "Supplier Payment Inquiries",
+    "description": "Automatically handles supplier questions about payment status, invoice approvals, and remittance details.",
+    "status": "active",
+    "created_at": "2024-03-20T10:00:00Z",
+    "workflow_name": "Supplier Payment Inquiry Handling",
+    "gaps_identified": [],
+    "workflow_steps": [
+      {
+        "step_number": 1,
+        "step_name": "Receive Supplier Email",
+        "description": "Supplier sends an email inquiring about payment status, invoice approval, or remittance details.",
+        "who_is_involved": "Supplier",
+        "how_they_are_reached": "Email",
+        "what_action_is_expected": "Send inquiry email",
+        "ai_can_automate": true
+      },
+      {
+        "step_number": 2,
+        "step_name": "Classify Intent & Look Up Invoice",
+        "description": "AI reads the email, classifies the intent, extracts the invoice reference, and queries the ERP system.",
+        "who_is_involved": "Digital Worker (AI)",
+        "how_they_are_reached": "System automated",
+        "what_action_is_expected": "Classify and retrieve ERP data",
+        "ai_can_automate": true
+      },
+      {
+        "step_number": 3,
+        "step_name": "Auto-respond if Scheduled",
+        "description": "If the invoice is found and payment is scheduled with high confidence, the AI replies automatically with payment details.",
+        "who_is_involved": "Digital Worker (AI)",
+        "how_they_are_reached": "Email",
+        "what_action_is_expected": "Send automated reply",
+        "ai_can_automate": true
+      },
+      {
+        "step_number": 4,
+        "step_name": "Escalate to AP Manager",
+        "description": "If the invoice is on hold, amount exceeds $25,000, or confidence is low, escalate to the AP Manager via Slack.",
+        "who_is_involved": "AP Manager",
+        "how_they_are_reached": "Slack",
+        "what_action_is_expected": "Review and respond within 1 business day",
+        "ai_can_automate": false
+      }
+    ],
+    "participants": [
+      {
+        "id": "p-001",
+        "role": "AP Clerk",
+        "reach": "System automated",
+        "description": "Automated by the digital worker — reviews ERP data and generates responses",
+        "escalation_timeout": "None"
+      },
+      {
+        "id": "p-002",
+        "role": "AP Manager",
+        "reach": "Slack",
+        "description": "Reviews escalated cases: on-hold invoices, high-value invoices over $25,000, and low-confidence classifications",
+        "escalation_timeout": "1 business day"
+      }
+    ],
+    "policies": [
+      {
+        "policy_id": "POL-001",
+        "policy_name": "High-value invoice escalation",
+        "trigger": "Always notify the AP Manager when invoice amount exceeds $25,000, even if auto-response is possible"
+      },
+      {
+        "policy_id": "POL-002",
+        "policy_name": "On-hold invoice escalation",
+        "trigger": "Never auto-respond to invoices with status 'on_hold' — always escalate to AP Manager for review"
+      },
+      {
+        "policy_id": "POL-003",
+        "policy_name": "Low confidence escalation",
+        "trigger": "Escalate to AP Manager if classification confidence is below 85%"
+      }
+    ],
+    "templates": [
+      {
+        "id": "tmpl-001",
+        "name": "Payment Status Response",
+        "content": "Dear [Supplier Name],\n\nThank you for reaching out regarding invoice [Invoice Number].\n\nWe have reviewed your inquiry and can confirm that payment of [Amount] is [scheduled for / was processed on] [Payment Date] via [Payment Method].\n\nIf you have any additional questions or need further details, please don't hesitate to reach out.\n\nBest regards,\nAccounts Payable Team"
+      }
+    ]
+  }
+]
