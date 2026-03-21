@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 from fastapi import APIRouter, HTTPException
+from routers.email_poller import clear_recent_emails
 
 router = APIRouter()
 
@@ -36,6 +37,7 @@ def reset_demo(mode: str = "fresh"):
             path = os.path.join(DATA_DIR, filename)
             with open(path, "w") as f:
                 json.dump(FRESH_STATE[key], f, indent=2)
+        clear_recent_emails()
         return {"status": "reset", "mode": "fresh", "message": "All demo data cleared. Setup wizard will start from step 1."}
 
     else:  # restore
@@ -44,6 +46,7 @@ def reset_demo(mode: str = "fresh"):
             dst = os.path.join(DATA_DIR, filename)
             if os.path.exists(src):
                 shutil.copy2(src, dst)
+        clear_recent_emails()
         return {"status": "reset", "mode": "restore", "message": "Seed data restored. Dashboard and audit trail are populated."}
 
 

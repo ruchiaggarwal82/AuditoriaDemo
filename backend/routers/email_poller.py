@@ -38,6 +38,11 @@ def _lookup_erp(invoice_reference: str | None) -> dict | None:
     return None
 
 
+def clear_recent_emails():
+    global _recent_emails
+    _recent_emails = []
+
+
 def _load_recent_emails() -> list[dict]:
     try:
         with open(RECENT_EMAILS_PATH) as f:
