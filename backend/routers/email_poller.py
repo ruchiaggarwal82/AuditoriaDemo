@@ -30,7 +30,9 @@ def _lookup_erp(invoice_reference: str | None) -> dict | None:
     invoices = _load_erp_data()
     ref = invoice_reference.upper()
     for inv in invoices:
-        if ref in inv["invoice_id"].upper() or ref in inv.get("po_number", "").upper():
+        inv_id = inv["invoice_id"].upper()
+        po = inv.get("po_number", "").upper()
+        if ref in inv_id or inv_id in ref or (po and (ref in po or po in ref)):
             return inv
     return None
 
