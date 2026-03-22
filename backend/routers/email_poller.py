@@ -119,6 +119,7 @@ async def poll_and_process():
                                 to=email["from"],
                                 subject=reply_subject,
                                 body=reply_body,
+                                message_id=email.get("message_id", ""),
                             )
                             outcome = "AUTONOMOUS"
                             response_sent = True

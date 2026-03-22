@@ -1,9 +1,40 @@
 import { useState } from 'react'
 import { Bot, User, AlertTriangle, ChevronRight, Check } from 'lucide-react'
 
-const PLACEHOLDER = `e.g. When a supplier emails us asking about payment status, our AP clerk checks the ERP system and looks up the invoice. If the invoice is found and payment is scheduled, they reply with the payment date. If the invoice is on hold or there's a discrepancy, they escalate to the AP Manager who reviews and responds within 1 business day. For invoices over $25,000, the AP Manager is always notified even if we can respond automatically.`
+const PLACEHOLDER = `Describe your supplier payment inquiry process in plain English…`
 
-export default function WorkflowMap({ onNext, onData }) {
+const SAMPLE_PROMPTS = [
+  {
+    label: 'Quick start',
+    description: 'Minimal — AI will ask follow-up questions',
+    text: `When a supplier emails us asking about payment status, our AP clerk checks the ERP system and looks up the invoice. If the invoice is found and payment is scheduled, they reply with the payment date. If the invoice is on hold or there's a discrepancy, they escalate to the AP Manager who reviews and responds within 1 business day. For invoices over $25,000, the AP Manager is always notified even if we can respond automatically.`,
+  },
+  {
+    label: 'Detailed',
+    description: 'More context — fewer follow-up questions',
+    text: `When a supplier emails ruchikumar111982@gmail.com with a payment inquiry, our AP Clerk looks up the invoice in our ERP using the invoice number or PO number from the email. If the invoice is found and marked as scheduled or paid, we reply within 4 hours with the payment date, method (ACH or wire), and a reference number. If payment is on hold due to a PO mismatch, missing documentation, or pending approval, we escalate to the AP Manager via Slack and they respond within 1 business day. Any invoice above $25,000 USD requires AP Manager notification before a response is sent, even if the digital worker can answer autonomously. Short payments are always escalated — never auto-responded. We handle PAYMENT_STATUS, INVOICE_APPROVAL, and REMITTANCE inquiries autonomously when confidence is above 85% and the invoice is found in ERP. Out-of-scope or unrecognised emails are flagged for human review.`,
+  },
+  {
+    label: 'Full detail',
+    description: 'Complete spec — no questions asked',
+    text: `Our accounts payable team handles supplier payment inquiries for Sookti.ai. Monitoring email: ruchikumar111982@gmail.com. Team: AP Clerk (Priya Sharma), AP Manager (Raj Patel, for escalations), Finance Director (for invoices over $100,000).
+
+Workflow:
+1. AI classifies inbound email intent: PAYMENT_STATUS, INVOICE_APPROVAL, SHORT_PAY, REMITTANCE, or OUT_OF_SCOPE.
+2. AI looks up the invoice in ERP using invoice number, PO number, or supplier name from the email.
+3. If invoice is found, payment is scheduled or paid, and confidence is above 85%: auto-reply with payment date, method, and reference number. Response within 2 minutes.
+4. If invoice is on hold, not found in ERP, or confidence is below 85%: escalate to AP Clerk via Slack (#ap-escalations). Human responds within 4 business hours.
+5. For invoices above $25,000: always notify AP Manager even when auto-responding.
+6. For invoices above $100,000: notify Finance Director and AP Manager before any response.
+7. Short payment disputes: always escalate to AP Manager — never auto-respond.
+8. Emails received outside business hours (Mon–Fri 9am–6pm IST): send an acknowledgment and promise next-business-day response.
+9. All responses are logged in the audit trail.
+
+Tone: professional, empathetic. Never reveal internal system names, hold reasons, or internal notes verbatim.`,
+  },
+]
+
+export default function WorkflowMap({ onNext, onData, onDescription }) {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
@@ -23,6 +54,7 @@ export default function WorkflowMap({ onNext, onData }) {
       const data = await res.json()
       setResult(data)
       onData?.(data)
+      onDescription?.(description)
     } catch (e) {
       setError('Could not reach the backend. Make sure the server is running.')
     } finally {
@@ -40,6 +72,21 @@ export default function WorkflowMap({ onNext, onData }) {
       <p className="text-sm text-slate-500 mb-6">
         Describe your supplier payment inquiry process in plain English. The AI will structure it into steps.
       </p>
+
+      {/* Sample prompt chips */}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <span className="text-xs text-slate-400 self-center mr-1">Try a sample:</span>
+        {SAMPLE_PROMPTS.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => setDescription(p.text)}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50 transition-colors"
+            title={p.description}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
       <textarea
         value={description}

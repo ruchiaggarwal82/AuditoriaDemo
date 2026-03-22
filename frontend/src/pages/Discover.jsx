@@ -64,8 +64,9 @@ function DemoControls() {
   const reset = async (mode) => {
     setLoading(mode)
     try {
-      const res = await fetch(`/api/demo/reset?mode=${mode}`, { method: 'POST' })
-      const data = await res.json()
+      await fetch(`/api/demo/reset?mode=${mode}`, { method: 'POST' })
+      // Inject fresh demo emails into the monitored inbox
+      fetch('/api/demo/inject-demo-emails', { method: 'POST' }).catch(() => {})
       // Refresh status
       const s = await fetch('/api/demo/status').then((r) => r.json())
       setStatus(s)

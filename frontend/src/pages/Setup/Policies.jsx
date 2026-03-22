@@ -1,35 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Trash2, Edit2, ChevronRight, Bot, User } from 'lucide-react'
+import { Send, Trash2, ChevronRight, Bot, User } from 'lucide-react'
 
-export default function Policies({ onNext, onBack, onData }) {
+export default function Policies({ onNext, onBack, onData, workflowDescription }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: "Hi! Describe your accounts payable policies in plain English and I'll structure them for your digital worker. For example: \"Don't respond to invoices on hold without AP manager approval. For anything over $25,000 notify the AP manager even if we respond.\"",
+      text: "Hi! I'll extract policies from your workflow description and you can add more. Describe any additional rules in plain English.",
     },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [policies, setPolicies] = useState([])
-  const [pendingQuestion, setPendingQuestion] = useState(null)
+  const [seeded, setSeeded] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const sendMessage = async (text) => {
+  // Auto-extract policies from the workflow description when this step is first shown
+  useEffect(() => {
+    if (workflowDescription && !seeded) {
+      setSeeded(true)
+      extractPolicies(workflowDescription, [], true)
+    }
+  }, [workflowDescription])
+
+  const extractPolicies = async (text, existingPolicies, isAuto = false) => {
     if (!text.trim()) return
-    const userMsg = { role: 'user', text }
-    setMessages((prev) => [...prev, userMsg])
-    setInput('')
+    if (!isAuto) {
+      setMessages((prev) => [...prev, { role: 'user', text }])
+      setInput('')
+    } else {
+      setMessages((prev) => [...prev, { role: 'assistant', text: 'Extracting policies from your workflow description…' }])
+    }
     setLoading(true)
 
     try {
       const res = await fetch('/api/agent/extract-policies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: text, existing_policies: policies }),
+        body: JSON.stringify({ description: text, existing_policies: existingPolicies }),
       })
       const data = await res.json()
 
@@ -37,22 +48,26 @@ export default function Policies({ onNext, onBack, onData }) {
         setPolicies((prev) => {
           const existing = new Set(prev.map((p) => p.policy_id))
           const newOnes = data.policies_extracted.filter((p) => !existing.has(p.policy_id))
-          return [...prev, ...newOnes]
+          const merged = [...prev, ...newOnes]
+          onData?.(merged)
+          return merged
         })
-        onData?.([...policies, ...(data.policies_extracted || [])])
       }
 
       const question = data.suggested_questions?.[0]
       if (question) {
-        setPendingQuestion(question)
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: `I've extracted your policies. One question: ${question}` },
+          { role: 'assistant', text: isAuto
+            ? `I've pulled ${data.policies_extracted?.length ?? 0} policies from your workflow. One thing to clarify: ${question}`
+            : `I've added ${data.policies_extracted?.length ?? 0} policy rule(s). One question: ${question}` },
         ])
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: `Got it! I've added ${data.policies_extracted?.length ?? 0} policy rule(s). Add more policies or continue when ready.` },
+          { role: 'assistant', text: isAuto
+            ? `I've pulled ${data.policies_extracted?.length ?? 0} policies directly from your workflow description. Add more or continue.`
+            : `Got it! I've added ${data.policies_extracted?.length ?? 0} policy rule(s). Add more or continue when ready.` },
         ])
       }
     } catch {
@@ -64,6 +79,8 @@ export default function Policies({ onNext, onBack, onData }) {
       setLoading(false)
     }
   }
+
+  const sendMessage = (text) => extractPolicies(text, policies)
 
   const removePolicy = (id) => setPolicies((prev) => prev.filter((p) => p.policy_id !== id))
 

@@ -3,6 +3,7 @@ import os
 import shutil
 from fastapi import APIRouter, HTTPException
 from routers.email_poller import clear_recent_emails
+from services import gmail_service
 
 router = APIRouter()
 
@@ -48,6 +49,19 @@ def reset_demo(mode: str = "fresh"):
                 shutil.copy2(src, dst)
         clear_recent_emails()
         return {"status": "reset", "mode": "restore", "message": "Seed data restored. Dashboard and audit trail are populated."}
+
+
+@router.post("/inject-demo-emails")
+async def inject_demo_emails():
+    """
+    Inject 5 demo supplier emails directly into the monitored inbox as unread messages.
+    Called on Fresh Start so the poller immediately has test emails to process.
+    """
+    try:
+        count = await gmail_service.inject_demo_emails()
+        return {"status": "injected", "count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status")
