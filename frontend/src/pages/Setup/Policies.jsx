@@ -55,18 +55,17 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
       }
 
       const question = data.suggested_questions?.[0]
-      if (question) {
+      // On auto-seed, skip follow-up questions — just confirm extraction
+      if (!isAuto && question) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: isAuto
-            ? `I've pulled ${data.policies_extracted?.length ?? 0} policies from your workflow. One thing to clarify: ${question}`
-            : `I've added ${data.policies_extracted?.length ?? 0} policy rule(s). One question: ${question}` },
+          { role: 'assistant', text: `I've added ${data.policies_extracted?.length ?? 0} policy rule(s). One question: ${question}` },
         ])
       } else {
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', text: isAuto
-            ? `I've pulled ${data.policies_extracted?.length ?? 0} policies directly from your workflow description. Add more or continue.`
+            ? `I've extracted ${data.policies_extracted?.length ?? 0} policies from your workflow. Add more below or click Continue.`
             : `Got it! I've added ${data.policies_extracted?.length ?? 0} policy rule(s). Add more or continue when ready.` },
         ])
       }
