@@ -28,26 +28,33 @@ export default function SetupFlow() {
   const [alreadyLive, setAlreadyLive] = useState(false)
   const navigate = useNavigate()
 
-  // Load existing worker config on mount — skip to Review if already configured
+  // Load existing worker config on mount — skip to Review if already configured.
+  // Three signals: localStorage flag (set on Launch), worker API, monitoring active.
   useEffect(() => {
-    fetch('/api/workflow/workers')
-      .then((r) => r.json())
-      .then((workers) => {
-        const worker = workers.find((w) => w.worker_id === 'worker-001')
-        if (worker?.workflow_steps?.length > 0) {
+    const isLive = localStorage.getItem('dw-worker-live') === 'true'
+
+    Promise.all([
+      fetch('/api/workflow/workers').then((r) => r.json()).catch(() => []),
+      fetch('/api/email/status').then((r) => r.json()).catch(() => ({ polling_active: false })),
+    ]).then(([workers, emailStatus]) => {
+      const worker = workers.find((w) => w.worker_id === 'worker-001')
+      const hasConfig = worker?.workflow_steps?.length > 0
+
+      if (hasConfig || isLive || emailStatus.polling_active) {
+        if (worker) {
           setWorkflowData({
             workflow_name: worker.workflow_name || 'Supplier Payment Inquiry Handling',
-            steps: worker.workflow_steps,
+            steps: worker.workflow_steps || [],
             gaps_identified: worker.gaps_identified || [],
           })
           setParticipants(worker.participants || [])
           setPolicies(worker.policies || [])
           setTemplates(worker.templates || [])
-          setAlreadyLive(true)
-          setCurrentStep(5)
         }
-      })
-      .catch(() => {})
+        setAlreadyLive(true)
+        setCurrentStep(5)
+      }
+    })
   }, [])
 
   const goNext = () => setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1))
@@ -87,6 +94,7 @@ export default function SetupFlow() {
     } catch (e) {
       console.error('Failed to save worker config:', e)
     }
+    localStorage.setItem('dw-worker-live', 'true')
     setTimeout(() => navigate('/monitor'), 2500)
   }
 

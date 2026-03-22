@@ -63,6 +63,7 @@ function DemoControls() {
 
   const reset = async (mode) => {
     setLoading(mode)
+    if (mode === 'fresh') localStorage.removeItem('dw-worker-live')
     try {
       await fetch(`/api/demo/reset?mode=${mode}`, { method: 'POST' })
       // Inject fresh demo emails into the monitored inbox
