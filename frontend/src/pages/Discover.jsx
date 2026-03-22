@@ -434,14 +434,16 @@ export default function Discover() {
         <div className="mt-6 flex justify-center">
           <button
             onClick={() => setShowTellUs(true)}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm text-slate-500 hover:text-slate-700 border border-dashed border-slate-300 hover:border-slate-400 rounded-xl transition-colors bg-white"
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-violet-600 hover:text-violet-700 border border-dashed border-violet-300 hover:border-violet-400 rounded-xl transition-colors bg-violet-50 hover:bg-violet-100"
           >
             <MessageSquare size={15} />
             Don't see the digital worker you need? Tell us about it →
           </button>
         </div>
 
-        <DemoControls />
+        <div className="mt-16">
+          <DemoControls />
+        </div>
       </div>
 
       {/* Modals */}
