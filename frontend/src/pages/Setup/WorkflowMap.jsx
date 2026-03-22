@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bot, User, AlertTriangle, ChevronRight, Check } from 'lucide-react'
+import { User, AlertTriangle, ChevronRight, Check, Sparkles } from 'lucide-react'
 
 const PLACEHOLDER = `Describe your supplier payment inquiry process in plain English…`
 
@@ -79,6 +79,113 @@ const PRESET_WORKFLOW = {
   gaps_identified: [],
 }
 
+// Static preview steps shown on the right before mapping (per template)
+const PREVIEW_STEPS = {
+  'Quick start': {
+    workflow_name: 'Supplier Payment Inquiry Handling',
+    steps: [
+      {
+        step_number: 1,
+        step_name: 'Receive Supplier Email',
+        description: 'Supplier emails asking about payment status, invoice approval, or remittance details.',
+        who_is_involved: 'Supplier',
+        how_they_are_reached: 'Email',
+        what_action_is_expected: 'Send inquiry',
+        ai_can_automate: false,
+      },
+      {
+        step_number: 2,
+        step_name: 'Look Up Invoice in ERP',
+        description: 'AP Clerk checks the ERP system and retrieves invoice and payment status.',
+        who_is_involved: 'AP Clerk',
+        how_they_are_reached: 'System automated',
+        what_action_is_expected: 'automated_only',
+        ai_can_automate: true,
+      },
+      {
+        step_number: 3,
+        step_name: 'Reply with Payment Details',
+        description: 'If payment is scheduled, reply to the supplier with the payment date.',
+        who_is_involved: 'AP Clerk',
+        how_they_are_reached: 'Email',
+        what_action_is_expected: 'automated_only',
+        ai_can_automate: true,
+      },
+      {
+        step_number: 4,
+        step_name: 'Escalate to AP Manager',
+        description: 'If invoice is on hold or a discrepancy exists, escalate to AP Manager who responds within 1 business day. Invoices over $25,000 always notify AP Manager.',
+        who_is_involved: 'AP Manager',
+        how_they_are_reached: 'Slack',
+        what_action_is_expected: 'review',
+        ai_can_automate: false,
+      },
+    ],
+    gaps_identified: [],
+  },
+  'Detailed': {
+    workflow_name: 'Supplier Payment Inquiry Handling',
+    steps: [
+      {
+        step_number: 1,
+        step_name: 'Receive & Classify Email',
+        description: 'Supplier emails ruchikumar111982@gmail.com. AI classifies intent (PAYMENT_STATUS, INVOICE_APPROVAL, REMITTANCE, SHORT_PAY, OUT_OF_SCOPE) and extracts invoice reference.',
+        who_is_involved: 'Digital Worker (AI)',
+        how_they_are_reached: 'Email',
+        what_action_is_expected: 'automated_only',
+        ai_can_automate: true,
+      },
+      {
+        step_number: 2,
+        step_name: 'Look Up Invoice in ERP',
+        description: 'AI queries ERP using invoice or PO number extracted from the email.',
+        who_is_involved: 'Digital Worker (AI)',
+        how_they_are_reached: 'System automated',
+        what_action_is_expected: 'automated_only',
+        ai_can_automate: true,
+      },
+      {
+        step_number: 3,
+        step_name: 'Auto-Reply (Scheduled / Paid)',
+        description: 'If found and confidence above 85%, reply within 4 hours with payment date, method (ACH or wire), and reference number.',
+        who_is_involved: 'Digital Worker (AI)',
+        how_they_are_reached: 'Email',
+        what_action_is_expected: 'automated_only',
+        ai_can_automate: true,
+      },
+      {
+        step_number: 4,
+        step_name: 'Escalate: On Hold / Mismatch',
+        description: 'PO mismatch, missing documentation, or pending approval — escalate to AP Manager via Slack. Respond within 1 business day.',
+        who_is_involved: 'AP Manager',
+        how_they_are_reached: 'Slack',
+        what_action_is_expected: 'review',
+        ai_can_automate: false,
+      },
+      {
+        step_number: 5,
+        step_name: 'High-Value Notification ($25k+)',
+        description: 'AP Manager is always notified for invoices over $25,000, even when the digital worker can auto-respond.',
+        who_is_involved: 'AP Manager',
+        how_they_are_reached: 'Slack',
+        what_action_is_expected: 'approve',
+        ai_can_automate: false,
+      },
+      {
+        step_number: 6,
+        step_name: 'Flag Out-of-Scope Emails',
+        description: 'Unrecognised or out-of-scope emails are flagged for human review rather than auto-responded.',
+        who_is_involved: 'AP Clerk',
+        how_they_are_reached: 'System automated',
+        what_action_is_expected: 'review',
+        ai_can_automate: false,
+      },
+    ],
+    gaps_identified: [],
+  },
+  'Full detail': PRESET_WORKFLOW,
+}
+
 const SAMPLE_PROMPTS = [
   {
     label: 'Quick start',
@@ -97,6 +204,119 @@ const SAMPLE_PROMPTS = [
   },
 ]
 
+function StepsList({ data, isPreview, addressedGaps, setAddressedGaps, onContinue }) {
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-slate-800 text-sm">{data.workflow_name}</h3>
+        {isPreview && (
+          <span className="flex items-center gap-1 text-xs text-violet-600 font-medium bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full">
+            <Sparkles size={11} /> Preview
+          </span>
+        )}
+      </div>
+
+      {/* Steps timeline */}
+      <div className="space-y-2">
+        {data.steps?.map((step, idx) => (
+          <div key={idx} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                {step.step_number ?? idx + 1}
+              </div>
+              {idx < data.steps.length - 1 && (
+                <div className="w-px flex-1 bg-slate-200 my-1" />
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-3.5 flex-1 mb-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900 text-sm leading-snug">{step.step_name}</p>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">{step.description}</p>
+                </div>
+                {step.ai_can_automate ? (
+                  <span className="flex items-center gap-1 text-xs text-teal-600 font-medium bg-teal-50 px-2 py-1 rounded-full flex-shrink-0">
+                    <Check size={10} /> AI
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full flex-shrink-0">
+                    <User size={10} /> Human
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-400">
+                <span>👤 {step.who_is_involved}</span>
+                <span>📬 {step.how_they_are_reached}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Gaps — only shown when result is real (not preview) */}
+      {!isPreview && data.gaps_identified?.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} className="text-amber-600" />
+            <span className="font-semibold text-amber-800 text-sm">Gaps identified</span>
+          </div>
+          <div className="space-y-3">
+            {data.gaps_identified.map((gap, idx) => (
+              <div key={idx} className="bg-white rounded-lg border border-amber-200 p-3">
+                <p className="text-sm text-amber-900 mb-2">{gap}</p>
+                {addressedGaps[idx] !== undefined ? (
+                  <div className="flex items-center gap-1 text-xs text-teal-600">
+                    <Check size={12} /> Addressed
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Your answer…"
+                      className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          setAddressedGaps((prev) => ({ ...prev, [idx]: e.target.value }))
+                        }
+                      }}
+                    />
+                    <button
+                      className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1.5 rounded transition-colors"
+                      onClick={(e) => {
+                        const input = e.target.previousSibling
+                        if (input.value.trim()) setAddressedGaps((prev) => ({ ...prev, [idx]: input.value }))
+                      }}
+                    >
+                      Address
+                    </button>
+                    <button
+                      className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5"
+                      onClick={() => setAddressedGaps((prev) => ({ ...prev, [idx]: 'skipped' }))}
+                    >
+                      Skip
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Continue button — only on real result */}
+      {!isPreview && (
+        <button
+          onClick={onContinue}
+          className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          Looks good, continue <ChevronRight size={16} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function WorkflowMap({ onNext, onData, onDescription }) {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -104,6 +324,7 @@ export default function WorkflowMap({ onNext, onData, onDescription }) {
   const [error, setError] = useState(null)
   const [addressedGaps, setAddressedGaps] = useState({})
   const [isFullDetail, setIsFullDetail] = useState(false)
+  const [selectedLabel, setSelectedLabel] = useState(null)
 
   const handleMap = async () => {
     if (!description.trim()) return
@@ -135,158 +356,89 @@ export default function WorkflowMap({ onNext, onData, onDescription }) {
     }
   }
 
-  const handleContinue = () => {
-    onNext()
-  }
+  // Right panel: show actual result if mapped, else show static preview for selected template
+  const rightData = result ?? (selectedLabel ? PREVIEW_STEPS[selectedLabel] : null)
+  const isPreview = !result && !!selectedLabel
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8 flex flex-col h-full">
       <h2 className="text-lg font-semibold text-slate-900 mb-1">Map your workflow</h2>
-      <p className="text-sm text-slate-500 mb-6">
+      <p className="text-sm text-slate-500 mb-5">
         Describe your supplier payment inquiry process in plain English. The AI will structure it into steps.
       </p>
 
-      {/* Sample prompt chips */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <span className="text-xs text-slate-400 self-center mr-1">Try a sample:</span>
-        {SAMPLE_PROMPTS.map((p) => (
-          <button
-            key={p.label}
-            onClick={() => {
-              setDescription(p.text)
-              setIsFullDetail(p.label === 'Full detail')
-              setResult(null)
-            }}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50 transition-colors"
-            title={p.description}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <textarea
-        value={description}
-        onChange={(e) => { setDescription(e.target.value); setIsFullDetail(false) }}
-        placeholder={PLACEHOLDER}
-        rows={6}
-        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white"
-      />
-
-      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-
-      <button
-        onClick={handleMap}
-        disabled={loading || !description.trim()}
-        className="mt-3 px-5 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
-      >
-        {loading ? (
-          <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Mapping…</>
-        ) : 'Map Workflow'}
-      </button>
-
-      {result && (
-        <div className="mt-8 space-y-6">
-          <h3 className="font-semibold text-slate-800">{result.workflow_name}</h3>
-
-          {/* Steps timeline */}
-          <div className="space-y-3">
-            {result.steps?.map((step, idx) => (
-              <div key={idx} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
-                    {step.step_number ?? idx + 1}
-                  </div>
-                  {idx < result.steps.length - 1 && (
-                    <div className="w-px flex-1 bg-slate-200 my-1" />
-                  )}
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 p-4 flex-1 mb-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-slate-900 text-sm">{step.step_name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>
-                    </div>
-                    {step.ai_can_automate ? (
-                      <span className="flex items-center gap-1 text-xs text-teal-600 font-medium bg-teal-50 px-2 py-1 rounded-full ml-3 flex-shrink-0">
-                        <Check size={10} /> AI automated
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-full ml-3 flex-shrink-0">
-                        <User size={10} /> Human step
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2 flex gap-4 text-xs text-slate-400">
-                    <span>👤 {step.who_is_involved}</span>
-                    <span>📬 {step.how_they_are_reached}</span>
-                    <span>⚡ {step.what_action_is_expected}</span>
-                  </div>
-                </div>
-              </div>
+      <div className="flex gap-6 flex-1 min-h-0">
+        {/* ── Left column: input ── */}
+        <div className="w-[44%] flex flex-col gap-3 min-h-0">
+          {/* Template chips */}
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-xs text-slate-400 mr-1">Try a sample:</span>
+            {SAMPLE_PROMPTS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => {
+                  setDescription(p.text)
+                  setIsFullDetail(p.label === 'Full detail')
+                  setSelectedLabel(p.label)
+                  setResult(null)
+                  setAddressedGaps({})
+                }}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                  selectedLabel === p.label
+                    ? 'border-teal-400 text-teal-700 bg-teal-50'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50'
+                }`}
+                title={p.description}
+              >
+                {p.label}
+              </button>
             ))}
           </div>
 
-          {/* Gaps */}
-          {result.gaps_identified?.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={16} className="text-amber-600" />
-                <span className="font-semibold text-amber-800 text-sm">Gaps identified</span>
-              </div>
-              <div className="space-y-3">
-                {result.gaps_identified.map((gap, idx) => (
-                  <div key={idx} className="bg-white rounded-lg border border-amber-200 p-3">
-                    <p className="text-sm text-amber-900 mb-2">{gap}</p>
-                    {addressedGaps[idx] !== undefined ? (
-                      <div className="flex items-center gap-1 text-xs text-teal-600">
-                        <Check size={12} /> Addressed
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Your answer…"
-                          className="flex-1 text-xs border border-slate-200 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.target.value.trim()) {
-                              setAddressedGaps((prev) => ({ ...prev, [idx]: e.target.value }))
-                            }
-                          }}
-                        />
-                        <button
-                          className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1.5 rounded transition-colors"
-                          onClick={(e) => {
-                            const input = e.target.previousSibling
-                            if (input.value.trim()) {
-                              setAddressedGaps((prev) => ({ ...prev, [idx]: input.value }))
-                            }
-                          }}
-                        >
-                          Address
-                        </button>
-                        <button
-                          className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5"
-                          onClick={() => setAddressedGaps((prev) => ({ ...prev, [idx]: 'skipped' }))}
-                        >
-                          Skip
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Textarea — flex-1 fills remaining height */}
+          <textarea
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value)
+              setIsFullDetail(false)
+              setSelectedLabel(null)
+            }}
+            placeholder={PLACEHOLDER}
+            className="flex-1 w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none bg-white leading-relaxed"
+          />
+
+          {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <button
-            onClick={handleContinue}
-            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-lg transition-colors"
+            onClick={handleMap}
+            disabled={loading || !description.trim()}
+            className="px-5 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 self-start"
           >
-            Looks good, continue <ChevronRight size={16} />
+            {loading ? (
+              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Mapping…</>
+            ) : 'Map Workflow'}
           </button>
         </div>
-      )}
+
+        {/* ── Right column: step preview / result ── */}
+        <div className="flex-1 overflow-y-auto">
+          {rightData ? (
+            <StepsList
+              data={rightData}
+              isPreview={isPreview}
+              addressedGaps={addressedGaps}
+              setAddressedGaps={setAddressedGaps}
+              onContinue={onNext}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-sm text-slate-300 text-center max-w-xs leading-relaxed">
+                Select a template or describe your workflow — a structured preview will appear here.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
