@@ -84,16 +84,16 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
   const removePolicy = (id) => setPolicies((prev) => prev.filter((p) => p.policy_id !== id))
 
   return (
-    <div className="p-8 max-w-3xl flex flex-col h-full">
+    <div className="p-8 flex flex-col h-full">
       <h2 className="text-lg font-semibold text-slate-900 mb-1">Define your policies</h2>
       <p className="text-sm text-slate-500 mb-6">
         Describe your policies in plain English. The digital worker will ask if anything important is missing.
       </p>
 
-      <div className="flex gap-6">
+      <div className="flex gap-6 flex-1 min-h-0">
         {/* Chat */}
-        <div className="flex-1 flex flex-col">
-          <div className="bg-white rounded-xl border border-slate-200 flex flex-col" style={{ height: 340 }}>
+        <div className="w-[42%] flex-shrink-0 flex flex-col">
+          <div className="bg-white rounded-xl border border-slate-200 flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -148,19 +148,19 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
         </div>
 
         {/* Extracted policies */}
-        <div className="w-56 flex-shrink-0">
+        <div className="flex-1 flex flex-col min-h-0">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Extracted policies</p>
           {policies.length === 0 ? (
             <div className="text-xs text-slate-400 italic bg-slate-50 rounded-lg p-3 border border-slate-200">
               Policies will appear here as you describe them.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="overflow-y-auto flex-1 grid grid-cols-2 gap-2 content-start">
               {policies.map((p) => (
                 <div key={p.policy_id} className="bg-white rounded-lg border border-slate-200 p-3">
                   <div className="flex items-start justify-between gap-1 mb-1">
                     <span className="text-xs font-semibold text-teal-600">{p.policy_id}</span>
-                    <button onClick={() => removePolicy(p.policy_id)} className="text-slate-300 hover:text-red-400 transition-colors">
+                    <button onClick={() => removePolicy(p.policy_id)} className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0">
                       <Trash2 size={12} />
                     </button>
                   </div>
