@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Activity } from 'lucide-react'
+import { Check, Activity, Pencil } from 'lucide-react'
 import WorkflowMap from './WorkflowMap'
 import Participants from './Participants'
 import Systems from './Systems'
@@ -158,9 +158,18 @@ function ReviewLaunch({ workflowData, participants, policies, templates, onBack,
   return (
     <div className="p-8 max-w-2xl">
       {alreadyLive && (
-        <div className="flex items-center gap-2.5 bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 mb-6">
-          <Activity size={16} className="text-teal-600 flex-shrink-0" />
-          <span className="text-sm font-medium text-teal-800">Worker is live and monitoring your inbox</span>
+        <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 mb-6">
+          <div className="flex items-center gap-2.5">
+            <Activity size={16} className="text-teal-600 flex-shrink-0" />
+            <span className="text-sm font-medium text-teal-800">Worker is live and monitoring your inbox</span>
+          </div>
+          <button
+            disabled
+            title="Edit configuration (coming soon)"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 border border-slate-200 rounded-lg bg-white cursor-not-allowed opacity-60"
+          >
+            <Pencil size={12} /> Edit
+          </button>
         </div>
       )}
       <h2 className="text-lg font-semibold text-slate-900 mb-1">

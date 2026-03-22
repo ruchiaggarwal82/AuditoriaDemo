@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown, Send, Check } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
@@ -35,6 +35,21 @@ export default function Monitor() {
       body: JSON.stringify({ entry_id, escalation_feedback, escalation_feedback_note: note }),
     })
     setFeedbackState((prev) => ({ ...prev, [entry_id]: { submitted: true, type: escalation_feedback, note } }))
+  }
+
+  const approveAndSend = async (entry_id) => {
+    setFeedbackState((prev) => ({ ...prev, [entry_id]: { submitting: true } }))
+    try {
+      await fetch('/api/email/approve-and-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id }),
+      })
+      setFeedbackState((prev) => ({ ...prev, [entry_id]: { submitted: true, type: 'approved' } }))
+      fetchStatus()
+    } catch {
+      setFeedbackState((prev) => ({ ...prev, [entry_id]: {} }))
+    }
   }
 
   const fetchStatus = useCallback(async () => {
@@ -182,7 +197,33 @@ export default function Monitor() {
 
               <div className="bg-white rounded-xl border border-slate-200 p-5">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">ERP Data</p>
-                {selected.invoice_id ? (
+                {selected.erp_detail ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-teal-400" />
+                      <span className="text-sm text-slate-800 font-medium">{selected.erp_detail.invoice_id} found in ERP</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                      <span className="text-slate-400">Supplier</span>
+                      <span className="text-slate-800 font-medium">{selected.erp_detail.supplier_name}</span>
+                      <span className="text-slate-400">Invoice amount</span>
+                      <span className="text-slate-800 font-medium">${selected.erp_detail.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-slate-400">Status</span>
+                      <span className="text-amber-600 font-medium capitalize">{selected.erp_detail.status?.replace('_', ' ')}</span>
+                      {selected.erp_detail.payment_date && (
+                        <>
+                          <span className="text-slate-400">Payment date</span>
+                          <span className="text-slate-800 font-medium">{selected.erp_detail.payment_date}</span>
+                        </>
+                      )}
+                    </div>
+                    {selected.erp_detail.notes && (
+                      <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+                        {selected.erp_detail.notes}
+                      </div>
+                    )}
+                  </div>
+                ) : selected.invoice_id ? (
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-teal-400" />
                     <span className="text-sm text-slate-800 font-medium">{selected.invoice_id} found in ERP</span>
@@ -194,6 +235,18 @@ export default function Monitor() {
                   </div>
                 )}
               </div>
+
+              {/* Draft response (SHORT_PAY escalations only) */}
+              {selected.draft_response?.body && (
+                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">AI-Drafted Response</p>
+                  <p className="text-xs text-slate-400 mb-3">Pending AP clerk approval before sending</p>
+                  <p className="text-xs font-medium text-slate-700 mb-2">{selected.draft_response.subject}</p>
+                  <pre className="text-xs text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 font-sans leading-relaxed max-h-48 overflow-y-auto border border-slate-100">
+                    {selected.draft_response.body}
+                  </pre>
+                </div>
+              )}
 
               <div className="bg-white rounded-xl border border-slate-200 p-5">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Outcome</p>
@@ -207,11 +260,44 @@ export default function Monitor() {
                 )}
               </div>
 
-              {/* Inline feedback */}
+              {/* Inline feedback / approval */}
               <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">AP Clerk Feedback</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                  {selected.intent === 'SHORT_PAY' && selected.outcome === 'ESCALATED' ? 'AP Clerk Approval' : 'AP Clerk Feedback'}
+                </p>
                 {(() => {
                   const fb = feedbackState[selected.entry_id]
+                  const isApproved = selected.approved || fb?.type === 'approved'
+
+                  // SHORT_PAY escalation — show approve flow
+                  if (selected.intent === 'SHORT_PAY' && selected.outcome === 'ESCALATED') {
+                    if (isApproved) {
+                      return (
+                        <div className="flex items-center gap-2 text-teal-700 text-xs font-medium bg-teal-50 px-3 py-2 rounded-lg">
+                          <Check size={14} /> Response sent to supplier
+                        </div>
+                      )
+                    }
+                    return (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-3">
+                          Review the AI-drafted response above and approve to send to the supplier.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => approveAndSend(selected.entry_id)}
+                            disabled={fb?.submitting}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-60"
+                          >
+                            {fb?.submitting
+                              ? <><span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" /> Sending…</>
+                              : <><Send size={12} /> Approve &amp; Send to Supplier</>}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+
                   if (fb?.submitted) {
                     return (
                       <p className={`text-xs font-medium px-3 py-2 rounded-lg ${
