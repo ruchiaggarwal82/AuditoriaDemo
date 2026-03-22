@@ -2,11 +2,11 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutGrid, Settings, Activity, ClipboardList, Zap, BarChart2 } from 'lucide-react'
 
 const navItems = [
-  { to: '/discover', icon: LayoutGrid, label: 'Discover' },
-  { to: '/setup', icon: Settings, label: 'Setup' },
-  { to: '/monitor', icon: Activity, label: 'Monitor' },
-  { to: '/dashboard', icon: BarChart2, label: 'Dashboard' },
-  { to: '/audit', icon: ClipboardList, label: 'Audit Trail' },
+  { to: '/discover',   icon: LayoutGrid,   label: 'Discover' },
+  { to: '/dashboard',  icon: BarChart2,    label: 'Dashboard' },
+  { to: '/setup',      icon: Settings,     label: 'Setup' },
+  { to: '/monitor',    icon: Activity,     label: 'Monitor' },
+  { to: '/audit',      icon: ClipboardList, label: 'Audit Trail' },
 ]
 
 export default function Sidebar() {
