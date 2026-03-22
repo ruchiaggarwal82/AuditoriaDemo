@@ -9,12 +9,11 @@ import Policies from './Policies'
 import TopNav from '../../components/TopNav'
 
 const STEPS = [
-  { id: 'workflow',      label: 'Workflow' },
-  { id: 'participants',  label: 'Participants' },
-  { id: 'systems',       label: 'Systems' },
-  { id: 'templates',     label: 'Templates' },
-  { id: 'policies',      label: 'Policies' },
-  { id: 'review',        label: 'Review & Launch' },
+  { id: 'workflow',   label: 'Workflow' },
+  { id: 'policies',   label: 'Policies' },
+  { id: 'systems',    label: 'Systems' },
+  { id: 'templates',  label: 'Templates' },
+  { id: 'review',     label: 'Review & Launch' },
 ]
 
 export default function SetupFlow() {
@@ -52,7 +51,7 @@ export default function SetupFlow() {
           setTemplates(worker.templates || [])
         }
         setAlreadyLive(true)
-        setCurrentStep(5)
+        setCurrentStep(4)
       }
     })
   }, [])
@@ -101,11 +100,10 @@ export default function SetupFlow() {
   const renderStep = () => {
     switch (currentStep) {
       case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} />
-      case 1: return <Participants onNext={goNext} onBack={goBack} workflowData={workflowData} onData={setParticipants} />
+      case 1: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} />
       case 2: return <Systems onNext={goNext} onBack={goBack} />
       case 3: return <Templates onNext={goNext} onBack={goBack} onData={setTemplates} />
-      case 4: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} />
-      case 5: return (
+      case 4: return (
         <ReviewLaunch
           workflowData={workflowData}
           participants={participants}
