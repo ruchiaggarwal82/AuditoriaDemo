@@ -99,7 +99,7 @@ export default function SetupFlow() {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} />
+      case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} initialDescription={workflowDescription} initialResult={workflowData} />
       case 1: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} />
       case 2: return <Systems onNext={goNext} onBack={goBack} />
       case 3: return <Templates onNext={goNext} onBack={goBack} onData={setTemplates} />

@@ -89,6 +89,8 @@ async def poll_and_process():
                 erp_data = None
                 is_short_pay = False
                 draft_response_data = None
+                reply_body = None
+                reply_subject = None
 
                 # Mark as read immediately so a processing crash never causes re-processing
                 await gmail_service.mark_as_read(email["id"])
@@ -120,6 +122,7 @@ async def poll_and_process():
                         reply_subject = response.get("subject") or f"Re: {email['subject']}"
                         reply_body = response.get("body", "")
                         if not response.get("requires_human_review") and reply_body:
+                            reply_subject = reply_subject  # captured for recent_entry
                             await gmail_service.send_reply(
                                 thread_id=email["thread_id"],
                                 to=email["from"],
@@ -206,6 +209,7 @@ async def poll_and_process():
                     "entry_id": entry_id,
                     "from": email["from"],
                     "subject": email["subject"],
+                    "email_body": email.get("body", ""),
                     "timestamp": email["timestamp"],
                     "intent": audit_entry["intent_classified"],
                     "outcome": outcome,
@@ -213,6 +217,8 @@ async def poll_and_process():
                     "invoice_id": invoice_id,
                     "escalation_reason": escalation_reason,
                     "erp_detail": erp_data if is_short_pay else None,
+                    "reply_subject": reply_subject,
+                    "reply_body": reply_body,
                 }
                 _recent_emails.insert(0, recent_entry)
                 _recent_emails = _recent_emails[:10]
@@ -275,6 +281,9 @@ def get_recent():
                 "draft_response": audit.get("draft_response"),
                 "approved": audit.get("approved", False),
                 "approved_at": audit.get("approved_at"),
+                "email_body": email.get("email_body", audit.get("email_body", "")),
+                "reply_body": email.get("reply_body"),
+                "reply_subject": email.get("reply_subject"),
             })
         return enriched
     except (FileNotFoundError, json.JSONDecodeError):

@@ -174,10 +174,17 @@ export default function Monitor() {
           ) : (
             <div className="max-w-xl space-y-4">
               <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Original Email</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Supplier Email</p>
                 <p className="text-sm font-semibold text-slate-900 mb-1">{selected.subject}</p>
-                <p className="text-xs text-slate-500 mb-3">From: {selected.from}</p>
-                <p className="text-xs text-slate-500">{fmtFull(selected.timestamp)}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-slate-500">From: {selected.from}</p>
+                  <p className="text-xs text-slate-400">{fmtFull(selected.timestamp)}</p>
+                </div>
+                {selected.email_body && (
+                  <pre className="text-xs text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 font-sans leading-relaxed max-h-48 overflow-y-auto border border-slate-100">
+                    {selected.email_body}
+                  </pre>
+                )}
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -235,6 +242,20 @@ export default function Monitor() {
                   </div>
                 )}
               </div>
+
+              {/* Agent reply — autonomous responses */}
+              {selected.outcome === 'AUTONOMOUS' && selected.reply_body && (
+                <div className="bg-teal-50 rounded-xl border border-teal-200 p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">Agent Response Sent</p>
+                    <span className="text-xs text-teal-600 font-medium bg-teal-100 px-2 py-0.5 rounded-full">Auto-sent ✓</span>
+                  </div>
+                  <p className="text-xs font-medium text-teal-800 mb-2">{selected.reply_subject}</p>
+                  <pre className="text-xs text-teal-900 whitespace-pre-wrap bg-white/70 rounded-lg p-3 font-sans leading-relaxed max-h-48 overflow-y-auto border border-teal-100">
+                    {selected.reply_body}
+                  </pre>
+                </div>
+              )}
 
               {/* Draft response (SHORT_PAY escalations only) */}
               {selected.draft_response?.body && (

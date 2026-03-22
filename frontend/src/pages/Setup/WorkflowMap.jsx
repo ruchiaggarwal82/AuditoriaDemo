@@ -317,14 +317,17 @@ function StepsList({ data, isPreview, addressedGaps, setAddressedGaps, onContinu
   )
 }
 
-export default function WorkflowMap({ onNext, onData, onDescription }) {
-  const [description, setDescription] = useState('')
+export default function WorkflowMap({ onNext, onData, onDescription, initialDescription, initialResult }) {
+  const [description, setDescription] = useState(initialDescription || '')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState(initialResult || null)
   const [error, setError] = useState(null)
   const [addressedGaps, setAddressedGaps] = useState({})
-  const [isFullDetail, setIsFullDetail] = useState(false)
-  const [selectedLabel, setSelectedLabel] = useState(null)
+  const [isFullDetail, setIsFullDetail] = useState(initialDescription === FULL_DETAIL_TEXT)
+  const [selectedLabel, setSelectedLabel] = useState(() => {
+    if (!initialDescription) return null
+    return SAMPLE_PROMPTS.find((p) => p.text === initialDescription)?.label ?? null
+  })
 
   const handleMap = async () => {
     if (!description.trim()) return
