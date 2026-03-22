@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown, Send, Check } from 'lucide-react'
+import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown, Send, Check, Lightbulb, X, ChevronRight, ShieldCheck } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
@@ -12,12 +12,178 @@ const INTENT_COLORS = {
   OUT_OF_SCOPE: 'out_of_scope',
 }
 
+// ── Suggested improvements (AI-detected from feedback patterns) ─────────────
+const SUGGESTIONS = [
+  {
+    id: 'sug-001',
+    title: 'Auto-respond to short-pay disputes when contract clause found',
+    summary: '4 AP Manager responses cited the same contract clause. The DW can handle this autonomously.',
+    pattern: 'In 4 of the last 6 SHORT_PAY escalations, the AP Manager responded by citing a specific contract clause — intermediary bank fees or agreed deduction terms. The same clause wording appeared in all 4 cases.',
+    evidence: [
+      'FastShip Logistics — AP Manager cited Clause 7.3: intermediary bank fees deducted as per agreement',
+      'Acme Supplies — Manager cited agreed settlement terms from Master Purchase Agreement',
+      'Global Tech Parts — Deduction confirmed within agreed 2% tolerance (Clause 4.1)',
+      'Pinnacle Parts — Identical bank fee clause to FastShip case',
+    ],
+    proposed_policy: 'When SHORT_PAY is detected: (1) Search supplier contract for a matching deduction or fee clause. (2) If found with >90% confidence, auto-respond citing the clause and amount. (3) If no clause found or confidence <90%, escalate to AP Manager as before.',
+    fallback: 'Falls back to human escalation if no contract clause is found — no risk of incorrect autonomous response.',
+    impact: 'Est. 60–70% of short-pay escalations handled autonomously',
+    risk_level: 'Low',
+  },
+  {
+    id: 'sug-002',
+    title: 'Auto-acknowledge invoices in the AP review queue',
+    summary: '7 supplier follow-up emails detected from suppliers with invoices already in review.',
+    pattern: 'Suppliers with invoices in "pending_approval" status receive no acknowledgment, prompting follow-up emails 2–3 days later. This creates avoidable inbox volume.',
+    evidence: [
+      '7 duplicate follow-up emails from suppliers with pending_approval invoices in the last 30 days',
+      'Avg. 2.4 days between invoice submission and first supplier follow-up',
+      'Metro Office Solutions sent 3 follow-ups on INV-2024-1051 before receiving any update',
+    ],
+    proposed_policy: 'When INVOICE_APPROVAL intent is detected and invoice status is "pending_approval": immediately send an acknowledgment confirming receipt and providing an estimated review window of 3–5 business days. No financial commitment made.',
+    fallback: 'Purely informational — no payment or approval decisions involved.',
+    impact: 'Est. 80% reduction in follow-up emails from suppliers with queued invoices',
+    risk_level: 'Very Low',
+  },
+]
+
+// Policy-mandated escalations never benefit from feedback
+function isPolicyMandated(email) {
+  const reason = (email.escalation_reason || '').toLowerCase()
+  const status = (email.erp_detail?.status || '')
+  return status === 'on_hold' || reason.includes('on hold') || reason.includes('on_hold')
+}
+
+// ── Suggestions modal ───────────────────────────────────────────────────────
+function SuggestionsModal({ suggestions, onApprove, onDismiss, onClose }) {
+  const [active, setActive] = useState(suggestions[0]?.id)
+  const current = suggestions.find((s) => s.id === active) || suggestions[0]
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
+              <Lightbulb size={14} className="text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Suggested Improvements</p>
+              <p className="text-xs text-slate-500">Detected from feedback patterns · {suggestions.length} pending</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+        </div>
+
+        {/* Tabs */}
+        {suggestions.length > 1 && (
+          <div className="flex border-b border-slate-100 px-6 gap-4 overflow-x-auto">
+            {suggestions.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setActive(s.id)}
+                className={`py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  active === s.id ? 'border-violet-500 text-violet-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {s.title.split(' ').slice(0, 5).join(' ')}…
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900 mb-1">{current.title}</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">{current.pattern}</p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Evidence from audit log</p>
+            <div className="space-y-1.5">
+              {current.evidence.map((e, i) => (
+                <div key={i} className="flex gap-2 text-xs text-slate-600">
+                  <span className="text-violet-400 flex-shrink-0">•</span> {e}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide mb-2">Proposed policy change</p>
+            <p className="text-sm text-violet-900 leading-relaxed">{current.proposed_policy}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Risk level</p>
+              <p className="text-sm font-semibold text-slate-800">{current.risk_level}</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center col-span-2">
+              <p className="text-xs text-slate-500 mb-1">Expected impact</p>
+              <p className="text-sm font-semibold text-slate-800">{current.impact}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
+            <ShieldCheck size={13} className="text-teal-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-teal-700"><strong>Fallback guaranteed:</strong> {current.fallback}</p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-100">
+          <button
+            onClick={() => onDismiss(current.id)}
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            Dismiss suggestion
+          </button>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
+              Review later
+            </button>
+            <button
+              onClick={() => onApprove(current.id)}
+              className="flex items-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              Approve & activate <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Monitor() {
   const [status, setStatus] = useState({ polling_active: false, last_checked: null, emails_processed_today: 0 })
   const [recent, setRecent] = useState([])
   const [selected, setSelected] = useState(null)
   const [toggling, setToggling] = useState(false)
-  const [feedbackState, setFeedbackState] = useState({}) // entry_id -> {submitted, type, showNegForm, note}
+  const [feedbackState, setFeedbackState] = useState({})
+  const [suggestionState, setSuggestionState] = useState(
+    Object.fromEntries(SUGGESTIONS.map((s) => [s.id, 'pending'])) // pending | approved | dismissed
+  )
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const pendingSuggestions = SUGGESTIONS.filter((s) => suggestionState[s.id] === 'pending')
+
+  const approveSuggestion = (id) => {
+    setSuggestionState((prev) => ({ ...prev, [id]: 'approved' }))
+    // If no more pending, close modal
+    if (SUGGESTIONS.filter((s) => s.id !== id && suggestionState[s.id] === 'pending').length === 0) {
+      setShowSuggestions(false)
+    }
+  }
+  const dismissSuggestion = (id) => {
+    setSuggestionState((prev) => ({ ...prev, [id]: 'dismissed' }))
+    if (SUGGESTIONS.filter((s) => s.id !== id && suggestionState[s.id] === 'pending').length === 0) {
+      setShowSuggestions(false)
+    }
+  }
 
   const submitFeedback = async (entry_id, feedback, note = '') => {
     await fetch('/api/audit/feedback', {
@@ -130,6 +296,25 @@ export default function Monitor() {
               <RefreshCw size={13} />
             </button>
           </div>
+
+          {/* Suggestions notification strip */}
+          {pendingSuggestions.length > 0 && (
+            <button
+              onClick={() => setShowSuggestions(true)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-violet-50 border-b border-violet-200 hover:bg-violet-100 transition-colors text-left"
+            >
+              <div className="w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center flex-shrink-0">
+                <Lightbulb size={11} className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-violet-800">
+                  {pendingSuggestions.length} improvement{pendingSuggestions.length > 1 ? 's' : ''} suggested
+                </p>
+                <p className="text-xs text-violet-600 truncate">Detected from feedback patterns → Review</p>
+              </div>
+              <ChevronRight size={13} className="text-violet-400 flex-shrink-0 ml-auto" />
+            </button>
+          )}
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
             {recent.length === 0 ? (
@@ -290,6 +475,21 @@ export default function Monitor() {
                   const fb = feedbackState[selected.entry_id]
                   const isApproved = selected.approved || fb?.type === 'approved'
 
+                  // Policy-mandated escalations — no feedback needed
+                  if (selected.outcome === 'ESCALATED' && isPolicyMandated(selected) && selected.intent !== 'SHORT_PAY') {
+                    return (
+                      <div className="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                        <ShieldCheck size={14} className="text-slate-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-medium text-slate-600">Policy escalation — no feedback needed</p>
+                          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                            On-hold invoices always escalate per policy. This is correct by definition — feedback on these escalations isn't tracked.
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  }
+
                   // SHORT_PAY escalation — show approve flow
                   if (selected.intent === 'SHORT_PAY' && selected.outcome === 'ESCALATED') {
                     if (isApproved) {
@@ -413,6 +613,16 @@ export default function Monitor() {
           )}
         </div>
       </div>
+
+      {/* Suggestions modal */}
+      {showSuggestions && pendingSuggestions.length > 0 && (
+        <SuggestionsModal
+          suggestions={pendingSuggestions}
+          onApprove={approveSuggestion}
+          onDismiss={dismissSuggestion}
+          onClose={() => setShowSuggestions(false)}
+        />
+      )}
     </div>
   )
 }
