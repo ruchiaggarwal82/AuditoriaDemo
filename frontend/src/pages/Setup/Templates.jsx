@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Upload, Trash2, FileText, ChevronRight } from 'lucide-react'
+import { Upload, Trash2, FileText, ChevronRight, Pencil, Check, X } from 'lucide-react'
 
 const DEFAULT_TEMPLATES = [
   {
@@ -69,6 +69,9 @@ export default function Templates({ onNext, onBack, onData }) {
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteName, setPasteName] = useState('')
   const [pasteContent, setPasteContent] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editContent, setEditContent] = useState('')
 
   const addPasted = () => {
     if (!pasteName.trim() || !pasteContent.trim()) return
@@ -78,6 +81,19 @@ export default function Templates({ onNext, onBack, onData }) {
     setPasteContent('')
     setPasteMode(false)
   }
+
+  const startEdit = (t) => {
+    setEditingId(t.id)
+    setEditName(t.name)
+    setEditContent(t.content)
+  }
+
+  const saveEdit = () => {
+    setTemplates((prev) => prev.map((t) => t.id === editingId ? { ...t, name: editName, content: editContent } : t))
+    setEditingId(null)
+  }
+
+  const cancelEdit = () => setEditingId(null)
 
   const remove = (id) => setTemplates((prev) => prev.filter((t) => t.id !== id))
 
@@ -96,25 +112,56 @@ export default function Templates({ onNext, onBack, onData }) {
       <div className="space-y-3 mb-4">
         {templates.map((t) => (
           <div key={t.id} className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <FileText size={16} className="text-teal-600 flex-shrink-0" />
-                <span className="text-sm font-medium text-slate-900">{t.name}</span>
-                {t.tag && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    t.tag === 'Autonomous'
-                      ? 'bg-teal-50 text-teal-600 border border-teal-200'
-                      : 'bg-violet-50 text-violet-600 border border-violet-200'
-                  }`}>{t.tag}</span>
-                )}
-              </div>
-              <button onClick={() => remove(t.id)} className="text-slate-400 hover:text-red-500 transition-colors">
-                <Trash2 size={15} />
-              </button>
-            </div>
-            <pre className="text-xs text-slate-500 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 font-sans leading-relaxed max-h-40 overflow-y-auto">
-              {t.content}
-            </pre>
+            {editingId === t.id ? (
+              <>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={7}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 mb-3"
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-500 text-white text-xs rounded-lg hover:bg-teal-600">
+                    <Check size={13} /> Save
+                  </button>
+                  <button onClick={cancelEdit} className="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 text-xs border border-slate-200 rounded-lg hover:bg-slate-50">
+                    <X size={13} /> Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <FileText size={16} className="text-teal-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-slate-900">{t.name}</span>
+                    {t.tag && (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        t.tag === 'Autonomous'
+                          ? 'bg-teal-50 text-teal-600 border border-teal-200'
+                          : 'bg-violet-50 text-violet-600 border border-violet-200'
+                      }`}>{t.tag}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => startEdit(t)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => remove(t.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+                <pre className="text-xs text-slate-500 whitespace-pre-wrap bg-slate-50 rounded-lg p-3 font-sans leading-relaxed max-h-40 overflow-y-auto">
+                  {t.content}
+                </pre>
+              </>
+            )}
           </div>
         ))}
       </div>

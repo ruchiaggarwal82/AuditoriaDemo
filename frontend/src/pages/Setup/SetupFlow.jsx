@@ -187,7 +187,6 @@ function ReviewLaunch({ workflowData, participants, policies, templates, onBack,
 
       <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 mb-8">
         <Row label="Workflow steps" value={workflowData?.steps?.length ?? 0} />
-        <Row label="Participants" value={participants?.length ?? 0} />
         <Row label="Systems connected" value="ERP (simulated), Gmail" />
         <Row label="Templates loaded" value={templates?.length ?? 0} />
         <Row label="Policies active" value={policies?.length ?? 0} />
