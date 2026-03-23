@@ -24,7 +24,7 @@ export default function Sidebar() {
           <span className="text-white font-semibold text-base tracking-tight">Acme Corp</span>
         </div>
         <p className="text-slate-400 text-xs mt-1 ml-9">Digital Finance Team</p>
-        <p className="text-slate-600 text-xs mt-0.5 ml-9">powered by Auditoria</p>
+        <p className="text-slate-400 text-xs mt-0.5 ml-9">powered by Auditoria</p>
       </div>
 
       {/* Nav */}
