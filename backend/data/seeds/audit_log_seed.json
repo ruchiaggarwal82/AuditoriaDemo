@@ -568,5 +568,43 @@
     "feedback_note": null,
     "escalation_feedback": null,
     "escalation_feedback_note": null
+  },
+  {
+    "entry_id": "audit-031",
+    "timestamp": "2026-03-22T09:10:14Z",
+    "email_from": "billing@techparts.io",
+    "email_subject": "Short payment on INV-2024-1088 — $180 deducted",
+    "intent_classified": "SHORT_PAY",
+    "confidence": 0.90,
+    "invoice_found": true,
+    "invoice_id": "INV-2024-1088",
+    "outcome": "ESCALATED",
+    "response_sent": false,
+    "escalated_to_slack": true,
+    "escalation_reason": "Short payment disputes require AP Manager review",
+    "processing_time_ms": 2150,
+    "feedback": null,
+    "feedback_note": null,
+    "escalation_feedback": "should_have_automated",
+    "escalation_feedback_note": "Deduction was $180 against a freight charge — standard deduction. DW should acknowledge automatically and explain the deduction policy rather than escalating every minor short pay."
+  },
+  {
+    "entry_id": "audit-032",
+    "timestamp": "2026-03-22T11:44:33Z",
+    "email_from": "finance@globalmfg.com",
+    "email_subject": "Short pay on INV-2024-1091 — freight deduction $95",
+    "intent_classified": "SHORT_PAY",
+    "confidence": 0.87,
+    "invoice_found": true,
+    "invoice_id": "INV-2024-1091",
+    "outcome": "ESCALATED",
+    "response_sent": false,
+    "escalated_to_slack": true,
+    "escalation_reason": "Short payment disputes require AP Manager review",
+    "processing_time_ms": 2260,
+    "feedback": null,
+    "feedback_note": null,
+    "escalation_feedback": "should_have_automated",
+    "escalation_feedback_note": "Another minor freight deduction under $200. We should add a policy: short pays under $250 related to freight or standard deduction codes can be auto-acknowledged with a template explaining the deduction."
   }
 ]
