@@ -1,8 +1,12 @@
+import json
+import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services import claude_service
 
 router = APIRouter()
+
+AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "audit_log.json")
 
 
 class ClassifyIntentRequest(BaseModel):
@@ -56,6 +60,24 @@ def map_workflow(req: MapWorkflowRequest):
 def extract_policies(req: ExtractPoliciesRequest):
     try:
         result = claude_service.extract_policies(req.description, req.existing_policies)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/suggestions")
+def get_suggestions():
+    try:
+        with open(AUDIT_LOG_PATH) as f:
+            audit_log = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        audit_log = []
+
+    if len(audit_log) < 3:
+        return {"suggestions": []}
+
+    try:
+        result = claude_service.generate_suggestions(audit_log)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

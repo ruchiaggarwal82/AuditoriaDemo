@@ -94,6 +94,49 @@ Respond in JSON only:
 Admin's workflow description:
 """
 
+SUGGESTIONS_PROMPT = """You are an AI analyst reviewing the audit log of an accounts payable digital worker.
+
+Analyse the provided audit log data and identify patterns that could improve the digital worker's autonomous handling rate or response quality.
+
+Focus on:
+1. Emails that were escalated but AP team feedback indicates they should have been automated ("should_have_automated")
+2. Repeated intents that consistently get escalated (potential new policy opportunity)
+3. Negative feedback on autonomous responses (quality improvement opportunity)
+4. High-volume scenarios where minor policy additions would enable automation
+
+For each improvement suggestion, structure it as:
+- id: unique identifier (sug-001, sug-002, etc.)
+- title: short action-oriented title (max 10 words)
+- summary: one-sentence summary of what was detected
+- pattern: 2-3 sentence description of the pattern in the data
+- evidence: array of 2-4 specific examples from the audit log (supplier name / invoice / observation)
+- proposed_policy: concrete policy change the digital worker should adopt (2-4 sentences)
+- fallback: what happens if the new policy can't resolve the case (1 sentence)
+- impact: estimated percentage or volume improvement (e.g. "Est. 60–70% of X handled autonomously")
+- risk_level: "Very Low", "Low", "Medium", or "High"
+
+Only include suggestions backed by real patterns in the data. If there is insufficient data to make a suggestion, return an empty list.
+
+Respond in JSON only:
+{
+  "suggestions": [
+    {
+      "id": "sug-001",
+      "title": "...",
+      "summary": "...",
+      "pattern": "...",
+      "evidence": ["...", "..."],
+      "proposed_policy": "...",
+      "fallback": "...",
+      "impact": "...",
+      "risk_level": "Low"
+    }
+  ]
+}
+
+Audit log data:
+"""
+
 POLICY_EXTRACTION_PROMPT = """You are helping a finance admin define policies for their AI digital worker.
 
 The admin has described some policies in plain English. Extract structured rules from their description.
@@ -189,4 +232,26 @@ def extract_policies(description: str, existing_policies: list) -> dict:
     prompt = POLICY_EXTRACTION_PROMPT + description
     if existing_policies:
         prompt += f"\n\nAlready extracted policies: {json.dumps(existing_policies, indent=2)}"
+    return _call_claude(prompt)
+
+
+def generate_suggestions(audit_entries: list) -> dict:
+    # Summarise the audit log to keep the prompt concise
+    summary_entries = []
+    for e in audit_entries:
+        summary_entries.append({
+            "entry_id": e.get("entry_id"),
+            "intent": e.get("intent_classified"),
+            "outcome": e.get("outcome"),
+            "confidence": e.get("confidence"),
+            "invoice_found": e.get("invoice_found"),
+            "escalation_reason": e.get("escalation_reason"),
+            "feedback": e.get("feedback"),
+            "feedback_note": e.get("feedback_note"),
+            "escalation_feedback": e.get("escalation_feedback"),
+            "escalation_feedback_note": e.get("escalation_feedback_note"),
+            "email_subject": e.get("email_subject"),
+            "email_from": e.get("email_from"),
+        })
+    prompt = SUGGESTIONS_PROMPT + json.dumps(summary_entries, indent=2)
     return _call_claude(prompt)

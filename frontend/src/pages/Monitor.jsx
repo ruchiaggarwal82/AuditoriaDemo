@@ -12,40 +12,6 @@ const INTENT_COLORS = {
   OUT_OF_SCOPE: 'out_of_scope',
 }
 
-// ── Suggested improvements (AI-detected from feedback patterns) ─────────────
-const SUGGESTIONS = [
-  {
-    id: 'sug-001',
-    title: 'Auto-respond to short-pay disputes when contract clause found',
-    summary: '4 AP Manager responses cited the same contract clause. The DW can handle this autonomously.',
-    pattern: 'In 4 of the last 6 SHORT_PAY escalations, the AP Manager responded by citing a specific contract clause — intermediary bank fees or agreed deduction terms. The same clause wording appeared in all 4 cases.',
-    evidence: [
-      'FastShip Logistics — AP Manager cited Clause 7.3: intermediary bank fees deducted as per agreement',
-      'Acme Supplies — Manager cited agreed settlement terms from Master Purchase Agreement',
-      'Global Tech Parts — Deduction confirmed within agreed 2% tolerance (Clause 4.1)',
-      'Pinnacle Parts — Identical bank fee clause to FastShip case',
-    ],
-    proposed_policy: 'When SHORT_PAY is detected: (1) Search supplier contract for a matching deduction or fee clause. (2) If found with >90% confidence, auto-respond citing the clause and amount. (3) If no clause found or confidence <90%, escalate to AP Manager as before.',
-    fallback: 'Falls back to human escalation if no contract clause is found — no risk of incorrect autonomous response.',
-    impact: 'Est. 60–70% of short-pay escalations handled autonomously',
-    risk_level: 'Low',
-  },
-  {
-    id: 'sug-002',
-    title: 'Auto-acknowledge invoices in the AP review queue',
-    summary: '7 supplier follow-up emails detected from suppliers with invoices already in review.',
-    pattern: 'Suppliers with invoices in "pending_approval" status receive no acknowledgment, prompting follow-up emails 2–3 days later. This creates avoidable inbox volume.',
-    evidence: [
-      '7 duplicate follow-up emails from suppliers with pending_approval invoices in the last 30 days',
-      'Avg. 2.4 days between invoice submission and first supplier follow-up',
-      'Metro Office Solutions sent 3 follow-ups on INV-2024-1051 before receiving any update',
-    ],
-    proposed_policy: 'When INVOICE_APPROVAL intent is detected and invoice status is "pending_approval": immediately send an acknowledgment confirming receipt and providing an estimated review window of 3–5 business days. No financial commitment made.',
-    fallback: 'Purely informational — no payment or approval decisions involved.',
-    impact: 'Est. 80% reduction in follow-up emails from suppliers with queued invoices',
-    risk_level: 'Very Low',
-  },
-]
 
 // Policy-mandated escalations never benefit from feedback
 function isPolicyMandated(email) {
@@ -164,25 +130,27 @@ export default function Monitor() {
   const [selected, setSelected] = useState(null)
   const [toggling, setToggling] = useState(false)
   const [feedbackState, setFeedbackState] = useState({})
-  const [suggestionState, setSuggestionState] = useState(
-    Object.fromEntries(SUGGESTIONS.map((s) => [s.id, 'pending'])) // pending | approved | dismissed
-  )
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestionState, setSuggestionState] = useState({}) // pending | approved | dismissed
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  const pendingSuggestions = SUGGESTIONS.filter((s) => suggestionState[s.id] === 'pending')
+  const pendingSuggestions = suggestions.filter((s) => (suggestionState[s.id] ?? 'pending') === 'pending')
 
   const approveSuggestion = (id) => {
-    setSuggestionState((prev) => ({ ...prev, [id]: 'approved' }))
-    // If no more pending, close modal
-    if (SUGGESTIONS.filter((s) => s.id !== id && suggestionState[s.id] === 'pending').length === 0) {
-      setShowSuggestions(false)
-    }
+    setSuggestionState((prev) => {
+      const next = { ...prev, [id]: 'approved' }
+      const stillPending = suggestions.filter((s) => s.id !== id && (next[s.id] ?? 'pending') === 'pending')
+      if (stillPending.length === 0) setShowSuggestions(false)
+      return next
+    })
   }
   const dismissSuggestion = (id) => {
-    setSuggestionState((prev) => ({ ...prev, [id]: 'dismissed' }))
-    if (SUGGESTIONS.filter((s) => s.id !== id && suggestionState[s.id] === 'pending').length === 0) {
-      setShowSuggestions(false)
-    }
+    setSuggestionState((prev) => {
+      const next = { ...prev, [id]: 'dismissed' }
+      const stillPending = suggestions.filter((s) => s.id !== id && (next[s.id] ?? 'pending') === 'pending')
+      if (stillPending.length === 0) setShowSuggestions(false)
+      return next
+    })
   }
 
   const submitFeedback = async (entry_id, feedback, note = '') => {
@@ -218,6 +186,22 @@ export default function Monitor() {
     }
   }
 
+  const fetchSuggestions = useCallback(async () => {
+    try {
+      const data = await fetch('/api/agent/suggestions').then((res) => res.json())
+      if (data?.suggestions) {
+        setSuggestions(data.suggestions)
+        setSuggestionState((prev) => {
+          const next = { ...prev }
+          data.suggestions.forEach((s) => {
+            if (!next[s.id]) next[s.id] = 'pending'
+          })
+          return next
+        })
+      }
+    } catch {}
+  }, [])
+
   const fetchStatus = useCallback(async () => {
     try {
       const [s, r] = await Promise.all([
@@ -244,9 +228,10 @@ export default function Monitor() {
 
   useEffect(() => {
     fetchStatus()
+    fetchSuggestions()
     const id = setInterval(fetchStatus, 5000)
     return () => clearInterval(id)
-  }, [fetchStatus])
+  }, [fetchStatus, fetchSuggestions])
 
   const togglePolling = async () => {
     setToggling(true)
