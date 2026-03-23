@@ -265,6 +265,68 @@ FastShip Logistics
 """,
     },
     {
+        "subject": "Invoice INV-2024-1047 – Approval Status Enquiry – Vertex Systems",
+        "from_name": "Vertex Systems Billing",
+        "from_addr": "billing@vertexsystems.io",
+        "body": """Dear Accounts Payable Team,
+
+I hope you are well. I am following up on an invoice submitted by Vertex Systems on 15 March 2024.
+
+Invoice Details:
+  Invoice Number    : INV-2024-1047
+  Supplier          : Vertex Systems
+  PO Number         : PO-8849
+  Invoice Amount    : $18,500.00 USD
+  Due Date          : 5 April 2024
+  Payment Method    : ACH
+
+We submitted this invoice against the approved purchase order referenced above. Could you please confirm:
+  1. Whether the invoice has been received and logged in your system
+  2. Whether it has been approved for payment, or if it is still pending review
+  3. Any additional documentation or information required to progress approval
+
+We want to make sure there are no issues that could delay payment ahead of the due date. Please do not hesitate to reach out if you need anything from our side.
+
+Kind regards,
+Accounts Receivable
+Vertex Systems
+""",
+    },
+    {
+        "subject": "Short Payment Dispute – INV-2024-1055 – $960.00 Quality Penalty Not Accepted",
+        "from_name": "Apex Components Ltd",
+        "from_addr": "ar@apexcomponents.com",
+        "body": """Dear Accounts Payable,
+
+We are writing to formally dispute a short payment received against Invoice INV-2024-1055.
+
+Invoice Details:
+  Invoice Number    : INV-2024-1055
+  Supplier          : Apex Components Ltd
+  PO Number         : PO-8862
+  Invoice Amount    : $9,600.00 USD
+  Amount Received   : $8,640.00 USD
+  Underpayment      : $960.00 USD
+  Payment Date      : 20 March 2024
+  Payment Method    : Wire Transfer
+
+We received a wire transfer of $8,640.00 on 20 March 2024. Our invoice was for the full amount of $9,600.00. A deduction of $960.00 was applied without prior written notice or a formal dispute notification as required under our Master Supply Agreement.
+
+We do not accept this deduction. The goods supplied met the specification agreed in the purchase order. No quality non-conformance report was raised or shared with us prior to payment.
+
+We formally request:
+  1. A copy of any quality inspection report or non-conformance record used to justify this deduction
+  2. The specific contract clause under which the penalty was applied
+  3. If no valid basis exists, immediate payment of the outstanding $960.00
+
+We would appreciate a response within 5 business days. If this cannot be resolved at the AP level, please escalate to your procurement or finance management team.
+
+Regards,
+Accounts Receivable
+Apex Components Ltd
+""",
+    },
+    {
         "subject": "General Payment Inquiry – Multiple Outstanding Invoices – Please Advise",
         "from_name": "Pinnacle Parts Ltd",
         "from_addr": "finance@pinnacleparts.com",
@@ -294,7 +356,7 @@ Pinnacle Parts Ltd
 
 async def inject_demo_emails():
     """
-    Insert 5 demo supplier emails directly into the monitored inbox as unread messages.
+    Insert 7 demo supplier emails directly into the monitored inbox as unread messages.
     Uses the Gmail API messages.insert method so no actual sending is required.
     Returns the count of emails successfully injected.
     """

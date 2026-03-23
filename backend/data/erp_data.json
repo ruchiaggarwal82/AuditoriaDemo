@@ -51,6 +51,32 @@
       "due_date": "2024-03-15",
       "po_number": "PO-8791",
       "notes": "Short paid by $450 due to freight damage deduction per contract clause 8.2"
+    },
+    {
+      "invoice_id": "INV-2024-1047",
+      "supplier_name": "Vertex Systems",
+      "supplier_email": "billing@vertexsystems.io",
+      "amount": 18500.00,
+      "currency": "USD",
+      "status": "pending_approval",
+      "payment_date": null,
+      "payment_method": "ACH",
+      "due_date": "2024-04-05",
+      "po_number": "PO-8849",
+      "notes": "Invoice received, pending 3-way PO match and AP manager approval"
+    },
+    {
+      "invoice_id": "INV-2024-1055",
+      "supplier_name": "Apex Components Ltd",
+      "supplier_email": "ar@apexcomponents.com",
+      "amount": 9600.00,
+      "currency": "USD",
+      "status": "short_paid",
+      "payment_date": "2024-03-20",
+      "payment_method": "Wire",
+      "due_date": "2024-03-20",
+      "po_number": "PO-8862",
+      "notes": "Short paid by $960 — 10% quality penalty applied per contract clause 5.4 (batch QC failure)"
     }
   ]
 }
