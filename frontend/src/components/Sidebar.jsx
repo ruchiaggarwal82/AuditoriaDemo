@@ -21,9 +21,10 @@ export default function Sidebar() {
           <div className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center">
             <Zap size={14} className="text-white" fill="white" />
           </div>
-          <span className="text-white font-semibold text-base tracking-tight">Auditoria</span>
+          <span className="text-white font-semibold text-base tracking-tight">Acme Corp</span>
         </div>
-        <p className="text-slate-400 text-xs mt-1 ml-9">Digital Workers</p>
+        <p className="text-slate-400 text-xs mt-1 ml-9">Digital Finance Team</p>
+        <p className="text-slate-600 text-xs mt-0.5 ml-9">powered by Auditoria</p>
       </div>
 
       {/* Nav */}
