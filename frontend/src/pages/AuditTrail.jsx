@@ -1,49 +1,212 @@
 import { useState, useEffect } from 'react'
-import { ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import { ChevronDown, ChevronUp, Filter, ThumbsUp, ThumbsDown, Check, X, Send } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
-// ── Inline step breakdown (collapsed by default) ─────────────────────────────
+// ── Step type pill ───────────────────────────────────────────────────────────
 function TypePill({ type }) {
-  if (type === 'DETERMINISTIC') return <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">DET</span>
+  if (type === 'DETERMINISTIC')
+    return <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">DET</span>
   return <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">PROB</span>
 }
 
-function StepSummaryRow({ step }) {
-  const r = step.result || {}
-  let summary = ''
-  if (step.step === 1) summary = `Sender verified · Invoice ref ${r.invoice_reference_found ? 'found' : 'not found'} · Compliance ${r.compliance_check_passed ? 'passed' : 'failed'}`
-  else if (step.step === 2) summary = `Classified as ${r.classified_intent} · ${Math.round((r.confidence || 0) * 100)}% confidence`
-  else if (step.step === 3) summary = r.fields?.length ? `${r.fields.length} fields retrieved` : (r.note || 'No ERP lookup')
-  else if (step.step === 4) summary = r.policy_triggered ? `${r.policy_triggered} triggered` : 'No policy triggered'
-  else if (step.step === 5) summary = r.method === 'template' ? `Template: ${r.template_used}` : r.method === 'ai_draft' ? 'AI draft generated' : `Escalated: ${r.reason?.slice(0, 60) || 'per policy'}`
-  else if (step.step === 6) summary = r.finding?.slice(0, 80) + '…'
-
-  const fb = step.feedback
-  const fbLabel = fb ? (fb.type === 'thumbs_up' || fb.type === 'correct' || fb.type === 'approved' ? '👍' : fb.type === 'edited' ? '✏' : '👎') : null
-
+// ── Confidence bar (compact) ─────────────────────────────────────────────────
+function ConfBarMini({ value }) {
+  const pct = Math.round((value || 0) * 100)
   return (
-    <div className="flex items-start gap-2 py-1.5 border-b border-slate-100 last:border-0 text-xs">
-      <span className="text-slate-400 w-4 flex-shrink-0 font-medium">{step.step}</span>
-      <TypePill type={step.type} />
-      <span className="font-medium text-slate-700 w-28 flex-shrink-0">{step.name}</span>
-      <span className="text-slate-500 flex-1 leading-relaxed">{summary}</span>
-      {fbLabel && <span className="flex-shrink-0">{fbLabel}</span>}
+    <span className="inline-flex items-center gap-1">
+      <span className="w-12 bg-slate-100 rounded-full h-1 inline-block">
+        <span className={`block h-1 rounded-full ${pct >= 85 ? 'bg-teal-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
+      </span>
+      <span className="text-slate-500">{pct}%</span>
+    </span>
+  )
+}
+
+// ── Step 2 feedback ──────────────────────────────────────────────────────────
+function AuditIntentFeedback({ entryId, initial, onSaved }) {
+  const [state, setState] = useState(initial ? { submitted: true, ...initial } : {})
+
+  const submit = async (type, data = {}) => {
+    await fetch('/api/audit/step-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id: entryId, step: 2, feedback_type: type, data }),
+    })
+    setState({ submitted: true, type, ...data })
+    onSaved?.()
+  }
+
+  if (state.submitted) {
+    return (
+      <span className="text-xs text-slate-500">
+        {state.type === 'thumbs_up' ? '👍 Correct' : `👎 Corrected${state.issue ? ' · ' + state.issue : ''}`}
+      </span>
+    )
+  }
+  if (state.showForm) {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <select
+          className="text-xs border border-amber-200 rounded px-1.5 py-0.5 focus:outline-none"
+          onChange={(e) => setState((s) => ({ ...s, issue: e.target.value }))}
+        >
+          <option value="">Reason…</option>
+          <option value="wrong_intent">Wrong intent</option>
+          <option value="ambiguous_message">Ambiguous message</option>
+          <option value="other">Other</option>
+        </select>
+        <button onClick={() => submit('thumbs_down', { issue: state.issue || 'other' })} className="text-xs px-2 py-0.5 bg-amber-500 text-white rounded">Submit</button>
+        <button onClick={() => setState({})} className="text-xs px-2 py-0.5 border border-slate-200 rounded text-slate-500">Cancel</button>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button onClick={() => submit('thumbs_up')} className="text-xs px-2 py-0.5 border border-teal-200 text-teal-600 rounded hover:bg-teal-50">✓ Correct</button>
+      <button onClick={() => setState({ showForm: true })} className="text-xs px-2 py-0.5 border border-amber-200 text-amber-600 rounded hover:bg-amber-50">✗ Wrong intent</button>
     </div>
   )
 }
 
+// ── Step 5 feedback ──────────────────────────────────────────────────────────
+function AuditDraftFeedback({ entryId, initial, draftBody, onSaved }) {
+  const [state, setState] = useState(initial ? { submitted: true, ...initial } : {})
+
+  const submit = async (type, data = {}) => {
+    await fetch('/api/audit/step-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id: entryId, step: 5, feedback_type: type, data }),
+    })
+    setState({ submitted: true, type, ...data })
+    onSaved?.()
+  }
+
+  if (state.submitted) {
+    const label = state.type === 'approved' ? '✓ Approved' : state.type === 'edited' ? `✏ Edited` : '✗ Rejected'
+    return <span className="text-xs text-slate-500">{label}</span>
+  }
+  if (state.editing) {
+    return (
+      <div className="mt-1 space-y-1">
+        <textarea
+          rows={3}
+          defaultValue={draftBody}
+          onChange={(e) => setState((s) => ({ ...s, edited: e.target.value }))}
+          className="text-xs w-full border border-teal-300 rounded p-1.5 font-sans focus:outline-none"
+        />
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => submit('edited', { edit_summary: 'Edited in audit trail', edited_body: state.edited })}
+            className="flex items-center gap-1 text-xs px-2 py-0.5 bg-teal-500 text-white rounded"
+          ><Send size={10} /> Save</button>
+          <button onClick={() => setState({})} className="text-xs px-2 py-0.5 border border-slate-200 rounded text-slate-500">Cancel</button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button onClick={() => submit('approved')} className="flex items-center gap-1 text-xs px-2 py-0.5 bg-teal-500 text-white rounded"><Check size={10} /> Approve</button>
+      <button onClick={() => setState({ editing: true })} className="text-xs px-2 py-0.5 border border-slate-200 text-slate-600 rounded hover:bg-slate-50">Edit</button>
+      <button onClick={() => submit('rejected')} className="text-xs px-2 py-0.5 border border-red-200 text-red-500 rounded hover:bg-red-50">Reject</button>
+    </div>
+  )
+}
+
+// ── Step 6 feedback ──────────────────────────────────────────────────────────
+function AuditFindingFeedback({ entryId, initial, onSaved }) {
+  const [state, setState] = useState(initial ? { submitted: true, ...initial } : {})
+
+  const submit = async (type) => {
+    await fetch('/api/audit/step-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id: entryId, step: 6, feedback_type: type, data: {} }),
+    })
+    setState({ submitted: true, type })
+    onSaved?.()
+  }
+
+  if (state.submitted) {
+    const label = { correct: '✓ Correct', incorrect: '✗ Incorrect', partial: '~ Partial' }[state.type] || state.type
+    return <span className="text-xs text-slate-500">{label}</span>
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <button onClick={() => submit('correct')} className="text-xs px-2 py-0.5 border border-teal-200 text-teal-600 rounded hover:bg-teal-50">✓ Correct</button>
+      <button onClick={() => submit('incorrect')} className="text-xs px-2 py-0.5 border border-red-200 text-red-500 rounded hover:bg-red-50">✗ Incorrect</button>
+      <button onClick={() => submit('partial')} className="text-xs px-2 py-0.5 border border-amber-200 text-amber-600 rounded hover:bg-amber-50">~ Partial</button>
+    </div>
+  )
+}
+
+// ── Step row (compact + inline feedback for PROB steps) ──────────────────────
+function AuditStepRow({ step, entryId, onFeedbackSaved }) {
+  const r = step.result || {}
+  const isProb = step.type === 'PROBABILISTIC'
+
+  let summary = ''
+  if (step.step === 1) summary = `Sender verified · Invoice ref ${r.invoice_reference_found ? 'found' : 'not found'} · Compliance ${r.compliance_check_passed ? 'passed' : 'failed'}`
+  else if (step.step === 2) summary = `Classified as ${r.classified_intent} · ${Math.round((r.confidence || 0) * 100)}% confidence`
+  else if (step.step === 3) summary = r.fields?.length ? `${r.fields.length} fields retrieved` : (r.note || 'No ERP lookup')
+  else if (step.step === 4) summary = r.policy_triggered ? `${r.policy_triggered} triggered` : (r.check?.slice(0, 80) || 'No policy triggered')
+  else if (step.step === 5) {
+    if (r.method === 'template') summary = `Template: ${r.template_used}`
+    else if (r.method === 'ai_draft') summary = r.draft_subject || 'AI draft generated'
+    else summary = r.reason?.slice(0, 70) || 'Escalated per policy'
+  }
+  else if (step.step === 6) summary = r.finding?.slice(0, 90) + (r.finding?.length > 90 ? '…' : '')
+
+  return (
+    <div className={`py-2 border-b border-slate-100 last:border-0 ${isProb ? 'bg-amber-50/30' : ''}`}>
+      <div className="flex items-start gap-2 text-xs">
+        <span className="text-slate-400 w-4 flex-shrink-0 font-medium pt-0.5">{step.step}</span>
+        <TypePill type={step.type} />
+        <span className="font-medium text-slate-700 w-32 flex-shrink-0 pt-0.5">{step.name}</span>
+        <span className="text-slate-500 flex-1 leading-relaxed pt-0.5">{summary}</span>
+      </div>
+
+      {/* Inline feedback for probabilistic steps */}
+      {isProb && (
+        <div className="ml-6 mt-1.5 pl-2 border-l-2 border-amber-200">
+          {step.step === 2 && (
+            <AuditIntentFeedback entryId={entryId} initial={step.feedback} onSaved={onFeedbackSaved} />
+          )}
+          {step.step === 5 && r.method === 'ai_draft' && (
+            <AuditDraftFeedback entryId={entryId} initial={step.feedback} draftBody={r.draft_body} onSaved={onFeedbackSaved} />
+          )}
+          {step.step === 6 && (
+            <AuditFindingFeedback entryId={entryId} initial={step.feedback} onSaved={onFeedbackSaved} />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Step breakdown (collapsible, loads lazily) ───────────────────────────────
 function AuditStepBreakdown({ entryId }) {
   const [open, setOpen] = useState(false)
   const [steps, setSteps] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [refresh, setRefresh] = useState(0)
 
   const load = () => {
-    if (steps) { setOpen((o) => !o); return }
+    if (steps && !loading) { setOpen((o) => !o); return }
     setLoading(true)
     fetch(`/api/audit/steps/${entryId}`)
       .then((r) => r.json())
       .then((d) => { setSteps(d.steps || []); setOpen(true); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+
+  const reload = () => {
+    setLoading(true)
+    fetch(`/api/audit/steps/${entryId}`)
+      .then((r) => r.json())
+      .then((d) => { setSteps(d.steps || []); setLoading(false); setRefresh((n) => n + 1) })
       .catch(() => setLoading(false))
   }
 
@@ -53,18 +216,21 @@ function AuditStepBreakdown({ entryId }) {
         onClick={load}
         className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-medium text-slate-600"
       >
-        <span>Agent step breakdown</span>
+        <span>Agent step breakdown · <span className="text-amber-600 font-semibold">give step feedback below</span></span>
         {loading ? <span className="text-slate-400">Loading…</span> : open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
       </button>
       {open && steps && (
-        <div className="px-3 py-2">
-          {steps.map((step) => <StepSummaryRow key={step.step} step={step} />)}
+        <div className="px-3 py-1">
+          {steps.map((step) => (
+            <AuditStepRow key={`${step.step}-${refresh}`} step={step} entryId={entryId} onFeedbackSaved={reload} />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
+// ── Intent colour map ────────────────────────────────────────────────────────
 const INTENT_COLORS = {
   PAYMENT_STATUS: 'payment_status',
   INVOICE_APPROVAL: 'invoice_approval',
@@ -74,22 +240,11 @@ const INTENT_COLORS = {
   OUT_OF_SCOPE: 'out_of_scope',
 }
 
-const FEEDBACK_OPTIONS = [
-  'Wrong information',
-  'Wrong tone',
-  'Should have escalated',
-  'Should not have escalated',
-  'Other',
-]
-
+// ── Main page ────────────────────────────────────────────────────────────────
 export default function AuditTrail() {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
-  const [feedbackOpen, setFeedbackOpen] = useState(null)
-  const [feedbackNote, setFeedbackNote] = useState('')
-  const [escFeedbackOpen, setEscFeedbackOpen] = useState(null)
-  const [escFeedbackNote, setEscFeedbackNote] = useState('')
   const [filterOutcome, setFilterOutcome] = useState('all')
   const [filterIntent, setFilterIntent] = useState('all')
 
@@ -102,28 +257,6 @@ export default function AuditTrail() {
   }
 
   useEffect(() => { fetchLog() }, [])
-
-  const submitFeedback = async (entry_id, feedback, note = '') => {
-    await fetch('/api/audit/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id, feedback, note }),
-    })
-    setFeedbackOpen(null)
-    setFeedbackNote('')
-    fetchLog()
-  }
-
-  const submitEscalationFeedback = async (entry_id, escalation_feedback, escalation_feedback_note = '') => {
-    await fetch('/api/audit/escalation-feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id, escalation_feedback, escalation_feedback_note }),
-    })
-    setEscFeedbackOpen(null)
-    setEscFeedbackNote('')
-    fetchLog()
-  }
 
   const filtered = entries.filter((e) => {
     if (filterOutcome !== 'all' && e.outcome?.toLowerCase() !== filterOutcome) return false
@@ -181,7 +314,6 @@ export default function AuditTrail() {
                   <th className="px-5 py-3 text-left">Confidence</th>
                   <th className="px-5 py-3 text-left">ERP Found</th>
                   <th className="px-5 py-3 text-left">Outcome</th>
-                  <th className="px-5 py-3 text-left">Quality Feedback</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -214,135 +346,15 @@ export default function AuditTrail() {
                       <td className="px-5 py-3.5">
                         <StatusBadge type={e.outcome?.toLowerCase()} />
                       </td>
-                      <td className="px-5 py-3.5" onClick={(ev) => ev.stopPropagation()}>
-                        {e.outcome === 'ESCALATED' ? (
-                          /* Escalation quality feedback */
-                          e.escalation_feedback ? (
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${e.escalation_feedback === 'justified' ? 'bg-teal-50 text-teal-600' : 'bg-amber-50 text-amber-700'}`}>
-                              {e.escalation_feedback === 'justified' ? '✓ Justified' : '✗ Should automate'}
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => submitEscalationFeedback(e.entry_id, 'justified')}
-                                className="text-xs px-2 py-1 rounded border border-teal-200 text-teal-600 hover:bg-teal-50 transition-colors"
-                              >
-                                ✓ Justified
-                              </button>
-                              <button
-                                onClick={() => setEscFeedbackOpen(escFeedbackOpen === e.entry_id ? null : e.entry_id)}
-                                className="text-xs px-2 py-1 rounded border border-amber-200 text-amber-600 hover:bg-amber-50 transition-colors"
-                              >
-                                ✗ Shouldn't escalate
-                              </button>
-                            </div>
-                          )
-                        ) : (
-                          /* Response quality feedback */
-                          e.feedback ? (
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${e.feedback === 'positive' ? 'bg-teal-50 text-teal-600' : 'bg-red-50 text-red-600'}`}>
-                              {e.feedback === 'positive' ? '👍' : '👎'} {e.feedback}
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => submitFeedback(e.entry_id, 'positive')}
-                                className="p-1 rounded text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
-                              >
-                                <ThumbsUp size={14} />
-                              </button>
-                              <button
-                                onClick={() => setFeedbackOpen(feedbackOpen === e.entry_id ? null : e.entry_id)}
-                                className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              >
-                                <ThumbsDown size={14} />
-                              </button>
-                            </div>
-                          )
-                        )}
-                      </td>
                       <td className="px-4 py-3.5 text-slate-400">
                         {expanded === e.entry_id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </td>
                     </tr>
 
-                    {/* Negative feedback form */}
-                    {feedbackOpen === e.entry_id && (
-                      <tr key={`fb-${e.entry_id}`}>
-                        <td colSpan={8} className="px-5 pb-3 pt-0 bg-red-50">
-                          <div className="border border-red-200 rounded-lg p-4">
-                            <p className="text-xs font-semibold text-red-700 mb-3">What was wrong?</p>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {FEEDBACK_OPTIONS.map((opt) => (
-                                <button
-                                  key={opt}
-                                  onClick={() => setFeedbackNote(opt)}
-                                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${feedbackNote === opt ? 'bg-red-500 text-white border-red-500' : 'border-red-200 text-red-700 hover:bg-red-100'}`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                value={feedbackNote === 'Other' || !FEEDBACK_OPTIONS.includes(feedbackNote) ? feedbackNote : ''}
-                                onChange={(ev) => setFeedbackNote(ev.target.value)}
-                                placeholder="Additional notes (optional)"
-                                className="flex-1 text-xs border border-red-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-                              />
-                              <button
-                                onClick={() => submitFeedback(e.entry_id, 'negative', feedbackNote)}
-                                className="px-3 py-2 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600"
-                              >
-                                Submit
-                              </button>
-                              <button
-                                onClick={() => setFeedbackOpen(null)}
-                                className="px-3 py-2 text-slate-500 text-xs border border-slate-200 rounded-lg"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Escalation "shouldn't escalate" feedback form */}
-                    {escFeedbackOpen === e.entry_id && (
-                      <tr key={`escfb-${e.entry_id}`}>
-                        <td colSpan={8} className="px-5 pb-3 pt-0 bg-amber-50">
-                          <div className="border border-amber-200 rounded-lg p-4">
-                            <p className="text-xs font-semibold text-amber-700 mb-2">What should the digital worker have done?</p>
-                            <div className="flex gap-2">
-                              <input
-                                value={escFeedbackNote}
-                                onChange={(ev) => setEscFeedbackNote(ev.target.value)}
-                                placeholder="e.g. Invoice was in ERP under different reference, DW should have responded autonomously"
-                                className="flex-1 text-xs border border-amber-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                              />
-                              <button
-                                onClick={() => submitEscalationFeedback(e.entry_id, 'should_have_automated', escFeedbackNote)}
-                                className="px-3 py-2 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600"
-                              >
-                                Submit
-                              </button>
-                              <button
-                                onClick={() => setEscFeedbackOpen(null)}
-                                className="px-3 py-2 text-slate-500 text-xs border border-slate-200 rounded-lg"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-
                     {/* Expanded row */}
                     {expanded === e.entry_id && (
                       <tr key={`exp-${e.entry_id}`}>
-                        <td colSpan={8} className="px-5 pb-4 pt-0 bg-slate-50">
+                        <td colSpan={7} className="px-5 pb-4 pt-0 bg-slate-50">
                           <div className="grid grid-cols-3 gap-4 text-xs mb-2">
                             <div>
                               <p className="font-semibold text-slate-500 mb-1">Subject</p>
@@ -362,20 +374,11 @@ export default function AuditTrail() {
                                 <p className="text-amber-700">{e.escalation_reason}</p>
                               </div>
                             )}
-                            {e.feedback_note && (
-                              <div className="col-span-3">
-                                <p className="font-semibold text-slate-500 mb-1">Feedback note</p>
-                                <p className="text-red-700">{e.feedback_note}</p>
-                              </div>
-                            )}
-                            {e.escalation_feedback_note && (
-                              <div className="col-span-3">
-                                <p className="font-semibold text-slate-500 mb-1">Escalation feedback note</p>
-                                <p className="text-amber-700">{e.escalation_feedback_note}</p>
-                              </div>
-                            )}
                           </div>
                           <AuditStepBreakdown entryId={e.entry_id} />
+                          <p className="text-xs text-slate-400 mt-2">
+                            Feedback on probabilistic steps (amber) feeds directly into the learning pipeline and Dashboard quality metrics.
+                          </p>
                         </td>
                       </tr>
                     )}
@@ -385,10 +388,6 @@ export default function AuditTrail() {
             </table>
           </div>
         )}
-
-        <p className="text-xs text-slate-400 mt-4 text-center">
-          Feedback you provide here becomes training signal for improving the digital worker over time.
-        </p>
       </div>
     </div>
   )
