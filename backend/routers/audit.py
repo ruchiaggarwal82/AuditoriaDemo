@@ -429,21 +429,33 @@ def get_step_quality_summary():
     )
 
     # Also tally any live feedback stored in the log itself (skip entries already counted above)
+    step2_confirmations = 0
+    step5_approvals = 0
+    step6_correct = 0
     for entry in log:
         entry_id = entry.get("entry_id", "")
         for step in entry.get("steps", []):
             fb = step.get("feedback")
             if not fb:
                 continue
-            if step["step"] == 2 and fb.get("type") == "thumbs_down":
-                if entry_id not in _STEP2_FEEDBACK:
+            if step["step"] == 2:
+                if fb.get("type") == "thumbs_down" and entry_id not in _STEP2_FEEDBACK:
                     step2_corrections += 1
-            elif step["step"] == 5 and fb.get("type") == "edited":
-                if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step5", {}).get("feedback", {}).get("type") != "edited":
+                elif fb.get("type") == "thumbs_up":
+                    step2_confirmations += 1
+            elif step["step"] == 5:
+                pre = _SHORT_PAY_STEPS.get(entry_id, {}).get("step5", {}).get("feedback", {})
+                if fb.get("type") == "edited" and pre.get("type") != "edited":
                     step5_edits += 1
-            elif step["step"] == 6 and fb.get("type") == "incorrect":
-                if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step6", {}).get("feedback", {}).get("type") != "incorrect":
+                elif fb.get("type") == "approved" and pre.get("type") != "approved":
+                    step5_approvals += 1
+            elif step["step"] == 6:
+                pre = _SHORT_PAY_STEPS.get(entry_id, {}).get("step6", {}).get("feedback", {})
+                fb_type = fb.get("type")
+                if fb_type == "incorrect" and pre.get("type") != "incorrect":
                     step6_incorrect += 1
+                elif fb_type in ("correct", "partial") and pre.get("type") != fb_type:
+                    step6_correct += 1
 
     # Determinism: 3 deterministic steps per email (1,3,4); 2 prob for normal, 3 prob for SHORT_PAY
     total_emails = len(log)
@@ -459,13 +471,18 @@ def get_step_quality_summary():
         "draft_edit": step5_edits >= 3,
     }
     suggestions_triggered = sum(1 for v in patterns_met.values() if v)
-    total_feedback = step2_corrections + step5_edits + step6_incorrect
+    total_feedback = (step2_corrections + step2_confirmations +
+                      step5_edits + step5_approvals +
+                      step6_incorrect + step6_correct)
 
     return {
         "step_feedback": {
             "step2_corrections": step2_corrections,
+            "step2_confirmations": step2_confirmations,
             "step5_edits": step5_edits,
+            "step5_approvals": step5_approvals,
             "step6_incorrect": step6_incorrect,
+            "step6_correct": step6_correct,
             "total": total_feedback,
         },
         "patterns_met": patterns_met,
