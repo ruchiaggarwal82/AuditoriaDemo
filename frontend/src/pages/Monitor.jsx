@@ -542,7 +542,6 @@ export default function Monitor() {
   const [suggestions, setSuggestions] = useState([])
   const [suggestionState, setSuggestionState] = useState({})
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [stepsRefresh, setStepsRefresh] = useState(0)
   const [showPolicies, setShowPolicies] = useState(false)
 
   const pendingSuggestions = suggestions.filter((s) => (suggestionState[s.id] ?? 'pending') === 'pending')
@@ -708,9 +707,8 @@ export default function Monitor() {
 
               {/* Step breakdown */}
               <StepBreakdown
-                key={`${selected.entry_id}-${stepsRefresh}`}
+                key={selected.entry_id}
                 email={selected}
-                onFeedbackSaved={() => setStepsRefresh((n) => n + 1)}
               />
             </div>
           )}

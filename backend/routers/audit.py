@@ -396,7 +396,8 @@ def record_step_feedback(req: StepFeedbackRequest):
         if entry["entry_id"] == req.entry_id:
             steps = entry.get("steps")
             if not steps:
-                raise HTTPException(status_code=404, detail="No steps data for this entry")
+                steps = _generate_steps(entry)
+                entry["steps"] = steps
             for step in steps:
                 if step["step"] == req.step:
                     step["feedback"] = {"type": req.feedback_type, **req.data}
