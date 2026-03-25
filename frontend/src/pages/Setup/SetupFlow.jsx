@@ -36,7 +36,8 @@ export default function SetupFlow() {
     Promise.all([
       fetch('/api/workflow/workers').then((r) => r.json()).catch(() => []),
       fetch('/api/email/status').then((r) => r.json()).catch(() => ({ polling_active: false })),
-    ]).then(([workers, emailStatus]) => {
+      fetch('/api/workflow/field-map/worker-001').then((r) => r.json()).catch(() => ({ field_map: [] })),
+    ]).then(([workers, emailStatus, fmData]) => {
       const worker = workers.find((w) => w.worker_id === 'worker-001')
       const hasConfig = worker?.workflow_steps?.length > 0
 
@@ -51,6 +52,7 @@ export default function SetupFlow() {
           setPolicies(worker.policies || [])
           setTemplates(worker.templates || [])
         }
+        setFieldMap(fmData.field_map || [])
         setAlreadyLive(true)
         setCurrentStep(4)
       }
@@ -99,6 +101,19 @@ export default function SetupFlow() {
   }
 
   const renderStep = () => {
+    // When the worker is live, show read-only summaries for all non-review steps
+    if (alreadyLive && currentStep < 4) {
+      return (
+        <ReadOnlyStep
+          step={currentStep}
+          workflowData={workflowData}
+          fieldMap={fieldMap}
+          policies={policies}
+          templates={templates}
+          onBack={() => setCurrentStep(4)}
+        />
+      )
+    }
     switch (currentStep) {
       case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} initialDescription={workflowDescription} initialResult={workflowData} />
       case 1: return <Systems onNext={goNext} onBack={goBack} onData={setFieldMap} />
@@ -163,6 +178,130 @@ export default function SetupFlow() {
           {renderStep()}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Read-only step view (when worker is already live) ────────────────────────
+function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBack }) {
+  const STEP_TITLES = ['Workflow', 'Systems', 'Policies', 'Templates']
+
+  const renderContent = () => {
+    if (step === 0) {
+      // Workflow
+      const steps = workflowData?.steps || []
+      return (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Workflow name</p>
+            <p className="text-sm font-semibold text-slate-800">{workflowData?.workflow_name || '—'}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-xs text-slate-400 uppercase tracking-wide mb-3">Steps ({steps.length})</p>
+            {steps.length === 0 ? <p className="text-sm text-slate-400">No steps recorded.</p> : (
+              <div className="space-y-2">
+                {steps.map((s, i) => (
+                  <div key={i} className="flex items-start gap-3 text-sm">
+                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-xs flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <div>
+                      <p className="font-medium text-slate-800">{s.name || s}</p>
+                      {s.description && <p className="text-xs text-slate-500 mt-0.5">{s.description}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {workflowData?.gaps_identified?.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <p className="text-xs text-amber-600 uppercase tracking-wide mb-2">Gaps identified</p>
+              <div className="space-y-1">
+                {workflowData.gaps_identified.map((g, i) => (
+                  <p key={i} className="text-sm text-amber-800">• {g}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (step === 1) {
+      // Systems / Field Map
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <p className="text-sm font-semibold text-slate-800">ERP Field Mapping</p>
+            <p className="text-xs text-slate-400 mt-0.5">Workday — {fieldMap.length} fields mapped</p>
+          </div>
+          {fieldMap.length === 0 ? (
+            <p className="p-5 text-sm text-slate-400">No field map saved.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {fieldMap.map((f) => (
+                <div key={f.field} className="grid grid-cols-3 gap-3 px-5 py-2.5 text-xs">
+                  <span className="font-mono text-teal-700">{f.field}</span>
+                  <span className="font-mono text-slate-400">{f.erp_path}</span>
+                  <span className="text-slate-600">{f.sample_value ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    if (step === 2) {
+      // Policies
+      return (
+        <div className="space-y-3">
+          {policies.length === 0 ? (
+            <p className="text-sm text-slate-400">No policies configured.</p>
+          ) : policies.map((p) => (
+            <div key={p.policy_id} className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-mono text-slate-400">{p.policy_id}</span>
+                <span className="text-sm font-semibold text-slate-800">{p.policy_name || p.title}</span>
+                <span className="ml-auto text-xs px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded font-medium">DETERMINISTIC</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">{p.trigger || p.description}</p>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (step === 3) {
+      // Templates
+      return (
+        <div className="space-y-3">
+          {templates.length === 0 ? (
+            <p className="text-sm text-slate-400">No templates configured.</p>
+          ) : templates.map((t, i) => (
+            <div key={i} className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+              <p className="text-sm font-semibold text-slate-800 mb-1">{t.name || t.title || `Template ${i + 1}`}</p>
+              {t.content && <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed">{t.content}</pre>}
+            </div>
+          ))}
+        </div>
+      )
+    }
+    return null
+  }
+
+  return (
+    <div className="p-8 max-w-2xl">
+      <div className="flex items-center gap-3 mb-6">
+        <h2 className="text-lg font-semibold text-slate-900">{STEP_TITLES[step]}</h2>
+        <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">Read-only</span>
+      </div>
+      {renderContent()}
+      <button
+        onClick={onBack}
+        className="mt-6 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+      >
+        ← Back to overview
+      </button>
     </div>
   )
 }
