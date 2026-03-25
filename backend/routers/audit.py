@@ -42,8 +42,8 @@ _ERP_SNAPSHOTS = {
 _SHORT_PAY_STEPS = {
     "audit-002": {
         "step5": {
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
-            "result": {"method": "ai_draft", "draft_subject": "Re: Short payment on PO-8821", "draft_body": "Dear Billing Team,\n\nThank you for your message. Payment of $8,640 was processed on 2024-03-20 for invoice INV-2024-1055. A deduction of $960 was applied per contract clause 5.4 following a documented batch quality control failure.\n\nPlease reach out if you have further questions.\n\nBest regards,\nAccounts Payable Team"},
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
+            "result": {"method": "ai_draft", "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This AI-drafted message is the acknowledgment sent to the supplier while the dispute is under review.", "draft_subject": "Re: Short payment on PO-8821", "draft_body": "Dear Billing Team,\n\nThank you for your message. Payment of $8,640 was processed on 2024-03-20 for invoice INV-2024-1055. A deduction of $960 was applied per contract clause 5.4 following a documented batch quality control failure.\n\nPlease reach out if you have further questions.\n\nBest regards,\nAccounts Payable Team"},
             "feedback": {"type": "edited", "edit_summary": "Added QC report reference number and exact deduction clause citation"},
         },
         "step6": {
@@ -54,8 +54,8 @@ _SHORT_PAY_STEPS = {
     },
     "audit-012": {
         "step5": {
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
-            "result": {"method": "ai_draft", "draft_subject": "Re: Short paid invoice INV-2024-1039 - only $8500 received", "draft_body": "Dear Finance Team,\n\nThank you for contacting us. Our records confirm invoice INV-2024-1039 was settled in full for $8,750 on 2024-03-18 via wire transfer. The $250 shortfall may reflect a bank transfer fee applied on the recipient side. Our AP Manager is reviewing and will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
+            "result": {"method": "ai_draft", "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This AI-drafted message is the acknowledgment sent to the supplier while the dispute is under review.", "draft_subject": "Re: Short paid invoice INV-2024-1039 - only $8500 received", "draft_body": "Dear Finance Team,\n\nThank you for contacting us. Our records confirm invoice INV-2024-1039 was settled in full for $8,750 on 2024-03-18 via wire transfer. The $250 shortfall may reflect a bank transfer fee applied on the recipient side. Our AP Manager is reviewing and will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
             "feedback": None,
         },
         "step6": {
@@ -66,8 +66,8 @@ _SHORT_PAY_STEPS = {
     },
     "audit-021": {
         "step5": {
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
-            "result": {"method": "ai_draft", "draft_subject": "Re: INV-2024-1058 short paid by $1,200", "draft_body": "Dear Billing Team,\n\nThank you for your message. Payment of $6,600 was processed on 2024-03-19 for invoice INV-2024-1058 ($7,800). A $1,200 deduction reflects quality inspection findings per contract clause 4.7. Our AP Manager will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
+            "result": {"method": "ai_draft", "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This AI-drafted message is the acknowledgment sent to the supplier while the dispute is under review.", "draft_subject": "Re: INV-2024-1058 short paid by $1,200", "draft_body": "Dear Billing Team,\n\nThank you for your message. Payment of $6,600 was processed on 2024-03-19 for invoice INV-2024-1058 ($7,800). A $1,200 deduction reflects quality inspection findings per contract clause 4.7. Our AP Manager will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
             "feedback": {"type": "edited", "edit_summary": "Added inspection report number and revised tone to be more direct about the contractual basis"},
         },
         "step6": {
@@ -78,8 +78,8 @@ _SHORT_PAY_STEPS = {
     },
     "audit-031": {
         "step5": {
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
-            "result": {"method": "ai_draft", "draft_subject": "Re: Short payment on INV-2024-1088 — $180 deducted", "draft_body": "Dear Billing Team,\n\nThank you for your message regarding invoice INV-2024-1088. A $180 deduction was applied related to freight charges on this shipment. Our team is reviewing and will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
+            "result": {"method": "ai_draft", "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This AI-drafted message is the acknowledgment sent to the supplier while the dispute is under review.", "draft_subject": "Re: Short payment on INV-2024-1088 — $180 deducted", "draft_body": "Dear Billing Team,\n\nThank you for your message regarding invoice INV-2024-1088. A $180 deduction was applied related to freight charges on this shipment. Our team is reviewing and will follow up within one business day.\n\nBest regards,\nAccounts Payable Team"},
             "feedback": {"type": "edited", "edit_summary": "Replaced vague language with explicit freight deduction policy explanation and carrier invoice reference"},
         },
         "step6": {
@@ -90,8 +90,8 @@ _SHORT_PAY_STEPS = {
     },
     "audit-032": {
         "step5": {
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
-            "result": {"method": "ai_draft", "draft_subject": "Re: Short pay on INV-2024-1091 — freight deduction $95", "draft_body": "Dear Finance Team,\n\nThank you for reaching out about invoice INV-2024-1091. A $95 deduction was applied for a freight charge adjustment. Our team is reviewing and will respond within one business day.\n\nBest regards,\nAccounts Payable Team"},
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
+            "result": {"method": "ai_draft", "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This AI-drafted message is the acknowledgment sent to the supplier while the dispute is under review.", "draft_subject": "Re: Short pay on INV-2024-1091 — freight deduction $95", "draft_body": "Dear Finance Team,\n\nThank you for reaching out about invoice INV-2024-1091. A $95 deduction was applied for a freight charge adjustment. Our team is reviewing and will respond within one business day.\n\nBest regards,\nAccounts Payable Team"},
             "feedback": None,
         },
         "step6": {
@@ -243,9 +243,10 @@ def _generate_steps(entry: dict) -> list:
         })
     elif is_short_pay:
         steps.append({
-            "step": 5, "name": "Response Generation", "type": "PROBABILISTIC",
+            "step": 5, "name": "Supplier Acknowledgment Draft", "type": "PROBABILISTIC",
             "result": {
                 "method": "ai_draft",
+                "policy_note": "Escalation to AP Manager is rule-mandated for all SHORT_PAY disputes. This step drafts the acknowledgment to send the supplier while the dispute is under review — the wording is AI-generated.",
                 "draft_subject": f"Re: {entry.get('email_subject', 'Short payment inquiry')}",
                 "draft_body": "Dear Supplier,\n\nThank you for reaching out regarding the payment discrepancy. Our AP Manager is reviewing the details and will provide a full response within one business day.\n\nBest regards,\nAccounts Payable Team",
             },
@@ -306,7 +307,11 @@ def get_steps(entry_id: str):
     log = _load_log()
     for entry in log:
         if entry["entry_id"] == entry_id:
-            # If pre-stored steps exist, return them (allows pre-enriched demo entries)
+            # For entries with rich demo data, always regenerate so _SHORT_PAY_STEPS
+            # and _STEP2_FEEDBACK take precedence over any stale stored steps.
+            if entry_id in _SHORT_PAY_STEPS or entry_id in _STEP2_FEEDBACK:
+                return {"steps": _generate_steps(entry)}
+            # For other entries, use stored steps if available (pre-enriched demo entries)
             if entry.get("steps"):
                 return {"steps": entry["steps"]}
             # Otherwise generate dynamically from flat fields

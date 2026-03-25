@@ -10,8 +10,8 @@ import TopNav from '../../components/TopNav'
 
 const STEPS = [
   { id: 'workflow',   label: 'Workflow' },
-  { id: 'policies',   label: 'Policies' },
   { id: 'systems',    label: 'Systems' },
+  { id: 'policies',   label: 'Policies' },
   { id: 'templates',  label: 'Templates' },
   { id: 'review',     label: 'Review & Launch' },
 ]
@@ -101,8 +101,8 @@ export default function SetupFlow() {
   const renderStep = () => {
     switch (currentStep) {
       case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} initialDescription={workflowDescription} initialResult={workflowData} />
-      case 1: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} fieldMap={fieldMap} />
-      case 2: return <Systems onNext={goNext} onBack={goBack} onData={setFieldMap} />
+      case 1: return <Systems onNext={goNext} onBack={goBack} onData={setFieldMap} />
+      case 2: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} fieldMap={fieldMap} />
       case 3: return <Templates onNext={goNext} onBack={goBack} onData={setTemplates} />
       case 4: return (
         <ReviewLaunch

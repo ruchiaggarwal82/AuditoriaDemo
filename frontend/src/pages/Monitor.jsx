@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown, Send, Check, Lightbulb, X, ChevronRight, ShieldCheck, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
+import { Play, Square, RefreshCw, Mail, ThumbsUp, ThumbsDown, Send, Check, Lightbulb, X, ChevronRight, ShieldCheck, ChevronDown, ChevronUp, Pencil, BookOpen } from 'lucide-react'
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
@@ -194,15 +194,15 @@ function StepCard({ step, entryId, onFeedbackSaved }) {
     if (step.step === 1) {
       const items = [
         { label: 'Sender verified', ok: r.sender_verified },
-        { label: 'Invoice reference found', ok: r.invoice_reference_found },
+        { label: 'Invoice number in email text', ok: r.invoice_reference_found, tooltip: 'Checks whether the email body contains an invoice reference number. The actual ERP lookup happens in Step 3.' },
         { label: 'Compliance check passed', ok: r.compliance_check_passed },
       ]
       return (
         <div className="space-y-1">
-          {items.map(({ label, ok }) => (
+          {items.map(({ label, ok, tooltip }) => (
             <div key={label} className="flex items-center gap-2 text-xs">
               <span className={ok ? 'text-teal-600' : 'text-amber-500'}>{ok ? '✓' : '✗'}</span>
-              <span className="text-slate-600">{label}</span>
+              <span className="text-slate-600" title={tooltip}>{label}{tooltip && <span className="text-slate-400 ml-1 cursor-help">ⓘ</span>}</span>
               <span className={`ml-auto font-medium ${ok ? 'text-teal-600' : 'text-amber-600'}`}>{ok ? 'Yes' : 'No'}</span>
             </div>
           ))}
@@ -248,7 +248,14 @@ function StepCard({ step, entryId, onFeedbackSaved }) {
               <span className={`font-medium ml-auto flex-shrink-0 ${f.status === 'not_found' ? 'text-amber-600' : f.status === 'null' ? 'text-slate-400' : 'text-slate-800'}`}>
                 {f.value === null || f.value === undefined ? '—' : String(f.value)}
               </span>
-              {(f.status === 'not_found' || f.status === 'null') && <span className="text-amber-500 ml-1">⚠</span>}
+              {(f.status === 'not_found' || f.status === 'null') && (
+                <span
+                  className="text-amber-500 ml-1 cursor-help"
+                  title={f.status === 'not_found'
+                    ? 'Invoice not found in ERP — this invoice ID does not exist in the system, or the ERP path mapping may need review in Setup → Systems.'
+                    : 'Field value is null or empty in ERP — the invoice exists but this field has no data.'}
+                >⚠</span>
+              )}
             </div>
           ))}
         </div>
@@ -287,6 +294,11 @@ function StepCard({ step, entryId, onFeedbackSaved }) {
       if (r.method === 'ai_draft') {
         return (
           <div>
+            {r.policy_note && (
+              <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 mb-2">
+                <span className="font-medium text-teal-700">Policy (Step 4):</span> {r.policy_note}
+              </p>
+            )}
             <p className="text-xs font-medium text-slate-700 mb-1">{r.draft_subject}</p>
             <pre className="text-xs text-slate-600 whitespace-pre-wrap bg-white rounded-lg p-2.5 font-sans leading-relaxed border border-slate-200 max-h-36 overflow-y-auto">{r.draft_body}</pre>
             <DraftFeedback
@@ -367,6 +379,66 @@ function StepBreakdown({ email, onFeedbackSaved }) {
       {steps.map((step) => (
         <StepCard key={step.step} step={step} entryId={email.entry_id} onFeedbackSaved={onFeedbackSaved} />
       ))}
+    </div>
+  )
+}
+
+// ── Policies read-only modal ─────────────────────────────────────────────────
+function PoliciesModal({ onClose }) {
+  const [policies, setPolicies] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/workflow/workers')
+      .then((r) => r.json())
+      .then((workers) => {
+        const w = workers.find((w) => w.worker_id === 'worker-001')
+        setPolicies(w?.policies || [])
+      })
+      .catch(() => setPolicies([]))
+  }, [])
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
+              <BookOpen size={14} className="text-teal-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Active Policies</p>
+              <p className="text-xs text-slate-500">Applied in Step 4 · Policy Match</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {policies === null ? (
+            <p className="text-xs text-slate-400">Loading…</p>
+          ) : policies.length === 0 ? (
+            <p className="text-xs text-slate-400">No policies configured. Go to Setup → Policies to add rules.</p>
+          ) : (
+            <div className="space-y-3">
+              {policies.map((p) => (
+                <div key={p.policy_id} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono text-slate-400">{p.policy_id}</span>
+                    <span className="text-xs font-semibold text-slate-700">{p.policy_name || p.title}</span>
+                    <span className="ml-auto text-xs px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded font-medium">DETERMINISTIC</span>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">{p.trigger || p.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-xs text-slate-400">Read-only · Edit in Setup → Policies</p>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Close</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -470,6 +542,7 @@ export default function Monitor() {
   const [suggestionState, setSuggestionState] = useState({})
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [stepsRefresh, setStepsRefresh] = useState(0)
+  const [showPolicies, setShowPolicies] = useState(false)
 
   const pendingSuggestions = suggestions.filter((s) => (suggestionState[s.id] ?? 'pending') === 'pending')
 
@@ -531,6 +604,12 @@ export default function Monitor() {
     <div className="min-h-full flex flex-col">
       <TopNav title="Live Inbox Monitor" subtitle="Supplier payment inquiry digital worker">
         <span className="text-xs text-slate-400">{status.emails_processed_today} processed today</span>
+        <button
+          onClick={() => setShowPolicies(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+        >
+          <BookOpen size={14} /> Policies
+        </button>
         <button
           onClick={togglePolling}
           disabled={toggling}
@@ -644,6 +723,10 @@ export default function Monitor() {
           onDismiss={dismissSuggestion}
           onClose={() => setShowSuggestions(false)}
         />
+      )}
+
+      {showPolicies && (
+        <PoliciesModal onClose={() => setShowPolicies(false)} />
       )}
     </div>
   )
