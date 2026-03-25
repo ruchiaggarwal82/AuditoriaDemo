@@ -75,6 +75,29 @@ def get_workers():
     return _load_workers()
 
 
+# These are the policies that the agent always enforces in Step 4 (Policy Match),
+# regardless of whether the user has explicitly saved them via the Setup wizard.
+_DEFAULT_POLICIES = [
+    {"policy_id": "POL-001", "policy_name": "High-value invoice escalation",
+     "trigger": "Always notify the AP Manager when invoice amount exceeds $25,000, even if auto-response is possible"},
+    {"policy_id": "POL-002", "policy_name": "On-hold invoice escalation",
+     "trigger": "Never auto-respond to invoices with status 'on_hold' — always escalate to AP Manager for review"},
+    {"policy_id": "POL-003", "policy_name": "Low confidence escalation",
+     "trigger": "Escalate to AP Manager if classification confidence is below 85%"},
+]
+
+
+@router.get("/active-policies/{worker_id}")
+def get_active_policies(worker_id: str):
+    """Return the worker's saved policies, or the hardcoded defaults that the system enforces."""
+    workers = _load_workers()
+    for w in workers:
+        if w["worker_id"] == worker_id:
+            if w.get("policies"):
+                return {"policies": w["policies"], "source": "configured"}
+    return {"policies": _DEFAULT_POLICIES, "source": "defaults"}
+
+
 @router.post("/save-workflow")
 def save_workflow(req: SaveWorkflowRequest):
     try:

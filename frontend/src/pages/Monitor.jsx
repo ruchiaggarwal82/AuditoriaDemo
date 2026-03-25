@@ -386,14 +386,12 @@ function StepBreakdown({ email, onFeedbackSaved }) {
 // ── Policies read-only modal ─────────────────────────────────────────────────
 function PoliciesModal({ onClose }) {
   const [policies, setPolicies] = useState(null)
+  const [source, setSource] = useState(null)
 
   useEffect(() => {
-    fetch('/api/workflow/workers')
+    fetch('/api/workflow/active-policies/worker-001')
       .then((r) => r.json())
-      .then((workers) => {
-        const w = workers.find((w) => w.worker_id === 'worker-001')
-        setPolicies(w?.policies || [])
-      })
+      .then((data) => { setPolicies(data.policies || []); setSource(data.source) })
       .catch(() => setPolicies([]))
   }, [])
 
@@ -416,10 +414,13 @@ function PoliciesModal({ onClose }) {
         <div className="flex-1 overflow-y-auto p-6">
           {policies === null ? (
             <p className="text-xs text-slate-400">Loading…</p>
-          ) : policies.length === 0 ? (
-            <p className="text-xs text-slate-400">No policies configured. Go to Setup → Policies to add rules.</p>
           ) : (
             <div className="space-y-3">
+              {source === 'defaults' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                  System default policies — these are always enforced. Customise them in Setup → Policies.
+                </div>
+              )}
               {policies.map((p) => (
                 <div key={p.policy_id} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 mb-1">
