@@ -241,8 +241,8 @@ function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBac
               {fieldMap.map((f) => (
                 <div key={f.field} className="grid grid-cols-3 gap-3 px-5 py-2.5 text-xs">
                   <span className="font-mono text-teal-700">{f.field}</span>
-                  <span className="font-mono text-slate-400">{f.erp_path}</span>
-                  <span className="text-slate-600">{f.sample_value ?? '—'}</span>
+                  <span className="font-mono text-slate-400">{f.path || '—'}</span>
+                  <span className="text-slate-600">{f.sample || '—'}</span>
                 </div>
               ))}
             </div>
