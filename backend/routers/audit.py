@@ -412,33 +412,36 @@ def get_step_quality_summary():
     """Aggregate step-level feedback counts and determinism stats across all audit entries."""
     log = _load_log()
 
-    # Start with pre-seeded demo feedback from module-level dicts
-    step2_corrections = len(_STEP2_FEEDBACK)  # 3
-    step5_edits = sum(
-        1 for v in _SHORT_PAY_STEPS.values()
-        if v.get("step5", {}).get("feedback", {}) and v["step5"]["feedback"].get("type") == "edited"
-    )  # 3 (audit-002, 021, 031)
-    step6_incorrect = sum(
-        1 for v in _SHORT_PAY_STEPS.values()
-        if v.get("step6", {}).get("feedback", {}) and v["step6"]["feedback"].get("type") == "incorrect"
-    )  # 2 (audit-031, 032)
+    # Build set of entry IDs present in the current log
+    log_ids = {e.get("entry_id") for e in log}
 
-    # Also tally any live feedback stored in the log itself
+    # Count pre-seeded demo feedback only for entries that exist in the current log
+    step2_corrections = sum(1 for eid in _STEP2_FEEDBACK if eid in log_ids)
+    step5_edits = sum(
+        1 for eid, v in _SHORT_PAY_STEPS.items()
+        if eid in log_ids
+        and v.get("step5", {}).get("feedback", {}).get("type") == "edited"
+    )
+    step6_incorrect = sum(
+        1 for eid, v in _SHORT_PAY_STEPS.items()
+        if eid in log_ids
+        and v.get("step6", {}).get("feedback", {}).get("type") == "incorrect"
+    )
+
+    # Also tally any live feedback stored in the log itself (skip entries already counted above)
     for entry in log:
+        entry_id = entry.get("entry_id", "")
         for step in entry.get("steps", []):
             fb = step.get("feedback")
             if not fb:
                 continue
             if step["step"] == 2 and fb.get("type") == "thumbs_down":
-                # Only count if not already in _STEP2_FEEDBACK to avoid double-counting
-                if entry.get("entry_id") not in _STEP2_FEEDBACK:
+                if entry_id not in _STEP2_FEEDBACK:
                     step2_corrections += 1
             elif step["step"] == 5 and fb.get("type") == "edited":
-                entry_id = entry.get("entry_id", "")
                 if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step5", {}).get("feedback", {}).get("type") != "edited":
                     step5_edits += 1
             elif step["step"] == 6 and fb.get("type") == "incorrect":
-                entry_id = entry.get("entry_id", "")
                 if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step6", {}).get("feedback", {}).get("type") != "incorrect":
                     step6_incorrect += 1
 
