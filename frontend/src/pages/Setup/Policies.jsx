@@ -1,7 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Trash2, ChevronRight, Bot, User } from 'lucide-react'
+import { Send, Trash2, ChevronRight, Bot, User, AlertTriangle, Tag } from 'lucide-react'
 
-export default function Policies({ onNext, onBack, onData, workflowDescription }) {
+// Infer which ERP fields a policy reads from based on trigger text
+function inferFieldsFromPolicy(policy) {
+  const text = ((policy.trigger || '') + ' ' + (policy.policy_name || '')).toLowerCase()
+  const fields = []
+  if (text.includes('hold') || text.includes('on_hold')) fields.push('invoice.hold_status')
+  if (text.includes('hold reason') || text.includes('hold_reason')) fields.push('invoice.hold_reason')
+  if (text.includes('amount') || text.includes('value') || text.includes('$') || text.includes('25,000') || text.includes('25000')) fields.push('invoice.amount')
+  if (text.includes('status') && !text.includes('hold')) fields.push('invoice.status')
+  if (text.includes('confidence')) {
+    // confidence is internal, not an ERP field — skip
+  }
+  if (text.includes('due date') || text.includes('due_date') || text.includes('overdue')) fields.push('invoice.due_date')
+  if (text.includes('payment date') || text.includes('payment_date')) fields.push('invoice.payment_date')
+  if (text.includes('vendor') || text.includes('supplier')) fields.push('vendor.name')
+  if (text.includes('currency')) fields.push('invoice.currency')
+  // deduplicate
+  return [...new Set(fields)]
+}
+
+export default function Policies({ onNext, onBack, onData, workflowDescription, fieldMap: fieldMapProp }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -12,13 +31,27 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
   const [loading, setLoading] = useState(false)
   const [policies, setPolicies] = useState([])
   const [seeded, setSeeded] = useState(false)
+  const [confirmedFields, setConfirmedFields] = useState([])
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  // Auto-extract policies from the workflow description when this step is first shown
+  // Load saved field map from backend (or use prop if passed forward)
+  useEffect(() => {
+    if (fieldMapProp?.length) {
+      setConfirmedFields(fieldMapProp.map((r) => r.field))
+      return
+    }
+    fetch('/api/workflow/field-map/worker-001')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.field_map?.length) setConfirmedFields(data.field_map.map((r) => r.field))
+      })
+      .catch(() => {})
+  }, [fieldMapProp])
+
   useEffect(() => {
     if (workflowDescription && !seeded) {
       setSeeded(true)
@@ -55,7 +88,6 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
       }
 
       const question = data.suggested_questions?.[0]
-      // On auto-seed, skip follow-up questions — just confirm extraction
       if (!isAuto && question) {
         setMessages((prev) => [
           ...prev,
@@ -80,7 +112,6 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
   }
 
   const sendMessage = (text) => extractPolicies(text, policies)
-
   const removePolicy = (id) => setPolicies((prev) => prev.filter((p) => p.policy_id !== id))
 
   return (
@@ -156,18 +187,42 @@ export default function Policies({ onNext, onBack, onData, workflowDescription }
             </div>
           ) : (
             <div className="overflow-y-auto flex-1 grid grid-cols-2 gap-2 content-start">
-              {policies.map((p) => (
-                <div key={p.policy_id} className="bg-white rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-1 mb-1">
-                    <span className="text-xs font-semibold text-teal-600">{p.policy_id}</span>
-                    <button onClick={() => removePolicy(p.policy_id)} className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0">
-                      <Trash2 size={12} />
-                    </button>
+              {policies.map((p) => {
+                const readsFrom = inferFieldsFromPolicy(p)
+                const unmapped = readsFrom.filter((f) => confirmedFields.length > 0 && !confirmedFields.includes(f))
+                return (
+                  <div key={p.policy_id} className="bg-white rounded-lg border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-1 mb-1">
+                      <span className="text-xs font-semibold text-teal-600">{p.policy_id}</span>
+                      <button onClick={() => removePolicy(p.policy_id)} className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <p className="text-xs font-medium text-slate-800 mb-1">{p.policy_name}</p>
+                    <p className="text-xs text-slate-500 leading-relaxed">{p.trigger}</p>
+
+                    {readsFrom.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {readsFrom.map((f) => (
+                          <span key={f} className="inline-flex items-center gap-1 text-xs text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+                            <Tag size={9} /> reads from: <span className="font-mono">{f}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {unmapped.length > 0 && (
+                      <div className="mt-2 flex items-start gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                        <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 leading-snug">
+                          This policy requires a field mapping you haven't completed yet.{' '}
+                          <span className="font-medium underline cursor-default">Go to Systems step →</span>
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs font-medium text-slate-800 mb-1">{p.policy_name}</p>
-                  <p className="text-xs text-slate-500 leading-relaxed">{p.trigger}</p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

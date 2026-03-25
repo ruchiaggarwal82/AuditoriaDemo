@@ -65,6 +65,11 @@ class SaveTemplatesRequest(BaseModel):
     templates: list
 
 
+class SaveFieldMapRequest(BaseModel):
+    worker_id: str
+    field_map: list
+
+
 @router.get("/workers")
 def get_workers():
     return _load_workers()
@@ -114,6 +119,27 @@ def save_templates(req: SaveTemplatesRequest):
         workers = _load_workers()
         workers, w = _upsert_worker(workers, req.worker_id)
         w["templates"] = req.templates
+        _save_workers(workers)
+        return {"status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/field-map/{worker_id}")
+def get_field_map(worker_id: str):
+    workers = _load_workers()
+    for w in workers:
+        if w["worker_id"] == worker_id:
+            return {"field_map": w.get("field_map", []), "confirmed": bool(w.get("field_map"))}
+    return {"field_map": [], "confirmed": False}
+
+
+@router.post("/save-field-map")
+def save_field_map(req: SaveFieldMapRequest):
+    try:
+        workers = _load_workers()
+        workers, w = _upsert_worker(workers, req.worker_id)
+        w["field_map"] = req.field_map
         _save_workers(workers)
         return {"status": "saved"}
     except Exception as e:

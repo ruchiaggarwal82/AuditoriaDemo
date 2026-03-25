@@ -23,6 +23,7 @@ export default function SetupFlow() {
   const [participants, setParticipants] = useState([])
   const [policies, setPolicies] = useState([])
   const [templates, setTemplates] = useState([])
+  const [fieldMap, setFieldMap] = useState([])
   const [launching, setLaunching] = useState(false)
   const [alreadyLive, setAlreadyLive] = useState(false)
   const navigate = useNavigate()
@@ -100,8 +101,8 @@ export default function SetupFlow() {
   const renderStep = () => {
     switch (currentStep) {
       case 0: return <WorkflowMap onNext={goNext} onData={setWorkflowData} onDescription={setWorkflowDescription} initialDescription={workflowDescription} initialResult={workflowData} />
-      case 1: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} />
-      case 2: return <Systems onNext={goNext} onBack={goBack} />
+      case 1: return <Policies onNext={goNext} onBack={goBack} onData={setPolicies} workflowDescription={workflowDescription} fieldMap={fieldMap} />
+      case 2: return <Systems onNext={goNext} onBack={goBack} onData={setFieldMap} />
       case 3: return <Templates onNext={goNext} onBack={goBack} onData={setTemplates} />
       case 4: return (
         <ReviewLaunch

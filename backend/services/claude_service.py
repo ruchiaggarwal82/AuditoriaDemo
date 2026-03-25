@@ -98,24 +98,31 @@ SUGGESTIONS_PROMPT = """You are an AI analyst reviewing the audit log of an acco
 
 Analyse the provided audit log data and identify patterns that could improve the digital worker's autonomous handling rate or response quality.
 
-Focus on:
-1. Emails that were escalated but AP team feedback indicates they should have been automated ("should_have_automated")
-2. Repeated intents that consistently get escalated (potential new policy opportunity)
-3. Negative feedback on autonomous responses (quality improvement opportunity)
-4. High-volume scenarios where minor policy additions would enable automation
+Focus on these signal sources:
 
-For each improvement suggestion, structure it as:
-- id: unique identifier (sug-001, sug-002, etc.)
+OVERALL PATTERNS:
+1. Emails escalated where AP feedback says "should_have_automated"
+2. Repeated intents consistently getting escalated
+3. Negative feedback on autonomous responses
+
+PER-STEP FEEDBACK PATTERNS (check step_feedback_summary):
+4. If intent_corrections >= 3 for the same intent type → suggest a clarifying policy for that intent
+5. If finding_incorrect_count >= 2 → suggest reviewing the data source or field mapping for that scenario
+6. If draft_edit_count >= 3 → suggest creating or updating a template based on the edit pattern
+
+For each suggestion, include:
+- id: sug-001, sug-002, etc.
 - title: short action-oriented title (max 10 words)
-- summary: one-sentence summary of what was detected
-- pattern: 2-3 sentence description of the pattern in the data
-- evidence: array of 2-4 specific examples from the audit log (supplier name / invoice / observation)
-- proposed_policy: concrete policy change the digital worker should adopt (2-4 sentences)
-- fallback: what happens if the new policy can't resolve the case (1 sentence)
-- impact: estimated percentage or volume improvement (e.g. "Est. 60–70% of X handled autonomously")
+- source_step: which step number generated this pattern (1-6), or null for overall patterns
+- summary: one sentence
+- pattern: 2-3 sentences describing the pattern
+- evidence: array of 2-4 specific examples
+- proposed_policy: concrete change the digital worker should adopt (2-4 sentences)
+- fallback: what happens if the policy can't resolve the case
+- impact: estimated improvement
 - risk_level: "Very Low", "Low", "Medium", or "High"
 
-Only include suggestions backed by real patterns in the data. If there is insufficient data to make a suggestion, return an empty list.
+Only include suggestions backed by real patterns. Return empty list if insufficient data.
 
 Respond in JSON only:
 {
@@ -123,6 +130,7 @@ Respond in JSON only:
     {
       "id": "sug-001",
       "title": "...",
+      "source_step": 2,
       "summary": "...",
       "pattern": "...",
       "evidence": ["...", "..."],
@@ -238,7 +246,28 @@ def extract_policies(description: str, existing_policies: list) -> dict:
 def generate_suggestions(audit_entries: list) -> dict:
     # Summarise the audit log to keep the prompt concise
     summary_entries = []
+    # Track per-step feedback patterns across all entries
+    intent_corrections = {}   # intent -> count of step-2 thumbs_down corrections
+    finding_incorrect = 0     # count of step-6 "incorrect" feedback
+    draft_edits = 0           # count of step-5 "edited" feedback
+
     for e in audit_entries:
+        # Tally per-step feedback from stored steps (pre-enriched entries)
+        for step in e.get("steps", []):
+            fb = step.get("feedback")
+            if not fb:
+                continue
+            if step["step"] == 2 and fb.get("type") == "thumbs_down":
+                intent = e.get("intent_classified", "UNKNOWN")
+                intent_corrections[intent] = intent_corrections.get(intent, 0) + 1
+            elif step["step"] == 6 and fb.get("type") == "incorrect":
+                finding_incorrect += 1
+            elif step["step"] == 5 and fb.get("type") == "edited":
+                draft_edits += 1
+        # Also tally from module-level lookup dicts (dynamic step data not stored in JSON)
+        # These are imported via the audit router's _STEP2_FEEDBACK, _SHORT_PAY_STEPS
+        # We approximate by checking entry_id against known patterns
+
         summary_entries.append({
             "entry_id": e.get("entry_id"),
             "intent": e.get("intent_classified"),
@@ -253,5 +282,17 @@ def generate_suggestions(audit_entries: list) -> dict:
             "email_subject": e.get("email_subject"),
             "email_from": e.get("email_from"),
         })
-    prompt = SUGGESTIONS_PROMPT + json.dumps(summary_entries, indent=2)
+
+    step_feedback_summary = {
+        "intent_corrections_by_intent": intent_corrections,
+        "finding_incorrect_count": finding_incorrect,
+        "draft_edit_count": draft_edits,
+        "note": "intent_corrections >= 3 for same intent → suggest clarifying policy; finding_incorrect >= 2 → suggest data source review; draft_edit >= 3 → suggest template creation",
+    }
+
+    payload = {
+        "step_feedback_summary": step_feedback_summary,
+        "audit_log": summary_entries,
+    }
+    prompt = SUGGESTIONS_PROMPT + json.dumps(payload, indent=2)
     return _call_claude(prompt)

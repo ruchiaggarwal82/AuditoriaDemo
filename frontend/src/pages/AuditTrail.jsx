@@ -3,6 +3,68 @@ import { ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, Filter } from 'lucide-rea
 import TopNav from '../components/TopNav'
 import StatusBadge from '../components/StatusBadge'
 
+// ── Inline step breakdown (collapsed by default) ─────────────────────────────
+function TypePill({ type }) {
+  if (type === 'DETERMINISTIC') return <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">DET</span>
+  return <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">PROB</span>
+}
+
+function StepSummaryRow({ step }) {
+  const r = step.result || {}
+  let summary = ''
+  if (step.step === 1) summary = `Sender verified · Invoice ref ${r.invoice_reference_found ? 'found' : 'not found'} · Compliance ${r.compliance_check_passed ? 'passed' : 'failed'}`
+  else if (step.step === 2) summary = `Classified as ${r.classified_intent} · ${Math.round((r.confidence || 0) * 100)}% confidence`
+  else if (step.step === 3) summary = r.fields?.length ? `${r.fields.length} fields retrieved` : (r.note || 'No ERP lookup')
+  else if (step.step === 4) summary = r.policy_triggered ? `${r.policy_triggered} triggered` : 'No policy triggered'
+  else if (step.step === 5) summary = r.method === 'template' ? `Template: ${r.template_used}` : r.method === 'ai_draft' ? 'AI draft generated' : `Escalated: ${r.reason?.slice(0, 60) || 'per policy'}`
+  else if (step.step === 6) summary = r.finding?.slice(0, 80) + '…'
+
+  const fb = step.feedback
+  const fbLabel = fb ? (fb.type === 'thumbs_up' || fb.type === 'correct' || fb.type === 'approved' ? '👍' : fb.type === 'edited' ? '✏' : '👎') : null
+
+  return (
+    <div className="flex items-start gap-2 py-1.5 border-b border-slate-100 last:border-0 text-xs">
+      <span className="text-slate-400 w-4 flex-shrink-0 font-medium">{step.step}</span>
+      <TypePill type={step.type} />
+      <span className="font-medium text-slate-700 w-28 flex-shrink-0">{step.name}</span>
+      <span className="text-slate-500 flex-1 leading-relaxed">{summary}</span>
+      {fbLabel && <span className="flex-shrink-0">{fbLabel}</span>}
+    </div>
+  )
+}
+
+function AuditStepBreakdown({ entryId }) {
+  const [open, setOpen] = useState(false)
+  const [steps, setSteps] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const load = () => {
+    if (steps) { setOpen((o) => !o); return }
+    setLoading(true)
+    fetch(`/api/audit/steps/${entryId}`)
+      .then((r) => r.json())
+      .then((d) => { setSteps(d.steps || []); setOpen(true); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+
+  return (
+    <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+      <button
+        onClick={load}
+        className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-medium text-slate-600"
+      >
+        <span>Agent step breakdown</span>
+        {loading ? <span className="text-slate-400">Loading…</span> : open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
+      {open && steps && (
+        <div className="px-3 py-2">
+          {steps.map((step) => <StepSummaryRow key={step.step} step={step} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const INTENT_COLORS = {
   PAYMENT_STATUS: 'payment_status',
   INVOICE_APPROVAL: 'invoice_approval',
@@ -281,7 +343,7 @@ export default function AuditTrail() {
                     {expanded === e.entry_id && (
                       <tr key={`exp-${e.entry_id}`}>
                         <td colSpan={8} className="px-5 pb-4 pt-0 bg-slate-50">
-                          <div className="grid grid-cols-3 gap-4 text-xs">
+                          <div className="grid grid-cols-3 gap-4 text-xs mb-2">
                             <div>
                               <p className="font-semibold text-slate-500 mb-1">Subject</p>
                               <p className="text-slate-800">{e.email_subject}</p>
@@ -313,6 +375,7 @@ export default function AuditTrail() {
                               </div>
                             )}
                           </div>
+                          <AuditStepBreakdown entryId={e.entry_id} />
                         </td>
                       </tr>
                     )}
