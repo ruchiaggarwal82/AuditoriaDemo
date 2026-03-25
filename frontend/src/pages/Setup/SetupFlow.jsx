@@ -133,8 +133,15 @@ export default function SetupFlow() {
             {STEPS.map((step, idx) => {
               const done = idx < currentStep
               const active = idx === currentStep
+              const clickable = done || active
               return (
-                <div key={step.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
+                <button
+                  key={step.id}
+                  onClick={() => clickable && setCurrentStep(idx)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${
+                    clickable ? 'hover:bg-slate-100 cursor-pointer' : 'cursor-default'
+                  } ${active ? 'bg-slate-100' : ''}`}
+                >
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
                     done    ? 'bg-teal-500 text-white' :
                     active  ? 'bg-navy-900 text-white' :
@@ -145,7 +152,7 @@ export default function SetupFlow() {
                   <span className={`text-sm ${active ? 'font-semibold text-slate-900' : done ? 'text-slate-600' : 'text-slate-400'}`}>
                     {step.label}
                   </span>
-                </div>
+                </button>
               )
             })}
           </div>
