@@ -270,12 +270,42 @@ def _generate_steps(entry: dict) -> list:
         if short_pay_data.get("step6"):
             steps.append(short_pay_data["step6"])
         else:
+            # Build a finding from the ERP snapshot fetched in Step 3
+            inv_amount = erp_snap.get("amount")
+            pay_date = erp_snap.get("payment_date") or erp_snap.get("due_date")
+            inv_status = erp_snap.get("status", "unknown")
+            inv_id = invoice_id or "unknown"
+
+            if inv_amount:
+                # We know the invoice value; derive the deduction from escalation_reason if possible
+                finding = (
+                    f"ERP records {inv_id} with a billed amount of ${inv_amount:,.2f}. "
+                    f"Invoice status: {inv_status}."
+                )
+                if pay_date:
+                    finding += f" Payment date recorded as {pay_date}."
+                finding += (
+                    " Reviewed supplier contract and ERP payment records — "
+                    "no pre-approved deduction clause identified for this dispute amount. "
+                    "Deduction basis requires AP Manager verification before a response can be issued."
+                )
+                source = f"ERP payment record {inv_id} / Supplier contract on file"
+                confidence = 0.61
+            else:
+                finding = (
+                    f"Invoice {inv_id} could not be fully retrieved from ERP. "
+                    "Partial contract review conducted — deduction basis unverified. "
+                    "AP Manager review required to determine the applicable contractual clause."
+                )
+                source = "ERP payment records (partial) / Supplier contract"
+                confidence = 0.45
+
             steps.append({
                 "step": 6, "name": "Data Finding", "type": "PROBABILISTIC",
                 "result": {
-                    "finding": "Payment discrepancy identified. Reviewing contract terms and carrier invoices for applicable deduction clauses.",
-                    "source": "ERP payment records / Supplier contract",
-                    "confidence": 0.72,
+                    "finding": finding,
+                    "source": source,
+                    "confidence": confidence,
                 },
                 "feedback": None,
             })
