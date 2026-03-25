@@ -110,10 +110,11 @@ async def poll_and_process():
 
                     intent = classification.get("intent", "UNKNOWN")
                     is_short_pay = intent == "SHORT_PAY"
+                    is_invoice_approval = intent == "INVOICE_APPROVAL"
                     requires_human = erp_data and erp_data.get("status") in ("on_hold",)
                     high_confidence = confidence >= 0.85
 
-                    if high_confidence and erp_data and not requires_human and not is_short_pay:
+                    if high_confidence and erp_data and not requires_human and not is_short_pay and not is_invoice_approval:
                         # Autonomous path
                         response = claude_service.generate_response(
                             email["body"], erp_data, []
@@ -154,6 +155,8 @@ async def poll_and_process():
                                 }
                             except Exception as draft_err:
                                 print(f"[email_poller] Draft generation error: {draft_err}")
+                        elif is_invoice_approval:
+                            escalation_reason = "Invoice approval requires human authorization (POL-004)"
                         elif requires_human:
                             escalation_reason = "Invoice is on hold — requires AP team review"
                         elif not erp_data:

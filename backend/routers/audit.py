@@ -217,7 +217,7 @@ def _generate_steps(entry: dict) -> list:
     elif is_short_pay:
         policy_result = {"policy_triggered": None, "check": "SHORT_PAY intent detected — payment disputes require AP Manager review per workflow design."}
     elif is_invoice_approval:
-        policy_result = {"policy_triggered": "WORKFLOW_RULE", "policy_name": "Invoice approval requires human authorization", "trigger_field": "intent", "trigger_value": "INVOICE_APPROVAL", "check": "INVOICE_APPROVAL intent — all approvals require human sign-off per workflow design."}
+        policy_result = {"policy_triggered": "POL-004", "policy_name": "Invoice approval authorization", "trigger_field": "intent", "trigger_value": "INVOICE_APPROVAL", "check": "INVOICE_APPROVAL intent — policy POL-004 mandates human sign-off for all invoice approval requests. Never auto-responded."}
     elif pol2 and pol1:
         policy_result = {"policy_triggered": "POL-001 + POL-002", "policy_name": "High-value + on-hold escalation", "trigger_field": "invoice.hold_status + invoice.amount", "trigger_value": f"true + ${amount:,.0f}", "check": f"invoice.hold_status = true → POL-002 triggered. Amount ${amount:,.0f} exceeds $25,000 → POL-001 also triggered. Escalating."}
     elif pol2:

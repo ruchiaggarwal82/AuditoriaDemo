@@ -84,6 +84,8 @@ _DEFAULT_POLICIES = [
      "trigger": "Never auto-respond to invoices with status 'on_hold' — always escalate to AP Manager for review"},
     {"policy_id": "POL-003", "policy_name": "Low confidence escalation",
      "trigger": "Escalate to AP Manager if classification confidence is below 85%"},
+    {"policy_id": "POL-004", "policy_name": "Invoice approval authorization",
+     "trigger": "Never auto-respond to invoice approval requests — all INVOICE_APPROVAL intents require human sign-off from an AP Manager before any action is taken"},
 ]
 
 
