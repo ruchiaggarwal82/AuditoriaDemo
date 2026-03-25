@@ -369,3 +369,72 @@ def record_step_feedback(req: StepFeedbackRequest):
                     return {"status": "feedback_recorded"}
             raise HTTPException(status_code=404, detail=f"Step {req.step} not found")
     raise HTTPException(status_code=404, detail="Audit entry not found")
+
+
+@router.get("/step-quality-summary")
+def get_step_quality_summary():
+    """Aggregate step-level feedback counts and determinism stats across all audit entries."""
+    log = _load_log()
+
+    # Start with pre-seeded demo feedback from module-level dicts
+    step2_corrections = len(_STEP2_FEEDBACK)  # 3
+    step5_edits = sum(
+        1 for v in _SHORT_PAY_STEPS.values()
+        if v.get("step5", {}).get("feedback", {}) and v["step5"]["feedback"].get("type") == "edited"
+    )  # 3 (audit-002, 021, 031)
+    step6_incorrect = sum(
+        1 for v in _SHORT_PAY_STEPS.values()
+        if v.get("step6", {}).get("feedback", {}) and v["step6"]["feedback"].get("type") == "incorrect"
+    )  # 2 (audit-031, 032)
+
+    # Also tally any live feedback stored in the log itself
+    for entry in log:
+        for step in entry.get("steps", []):
+            fb = step.get("feedback")
+            if not fb:
+                continue
+            if step["step"] == 2 and fb.get("type") == "thumbs_down":
+                # Only count if not already in _STEP2_FEEDBACK to avoid double-counting
+                if entry.get("entry_id") not in _STEP2_FEEDBACK:
+                    step2_corrections += 1
+            elif step["step"] == 5 and fb.get("type") == "edited":
+                entry_id = entry.get("entry_id", "")
+                if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step5", {}).get("feedback", {}).get("type") != "edited":
+                    step5_edits += 1
+            elif step["step"] == 6 and fb.get("type") == "incorrect":
+                entry_id = entry.get("entry_id", "")
+                if entry_id not in _SHORT_PAY_STEPS or _SHORT_PAY_STEPS[entry_id].get("step6", {}).get("feedback", {}).get("type") != "incorrect":
+                    step6_incorrect += 1
+
+    # Determinism: 3 deterministic steps per email (1,3,4); 2 prob for normal, 3 prob for SHORT_PAY
+    total_emails = len(log)
+    short_pay_count = sum(1 for e in log if e.get("intent_classified") == "SHORT_PAY")
+    det_steps = 3 * total_emails
+    prob_steps = 2 * (total_emails - short_pay_count) + 3 * short_pay_count
+    total_steps = det_steps + prob_steps
+    det_rate = round(det_steps / total_steps * 100, 1) if total_steps > 0 else 0
+
+    patterns_met = {
+        "intent_correction": step2_corrections >= 3,
+        "finding_incorrect": step6_incorrect >= 2,
+        "draft_edit": step5_edits >= 3,
+    }
+    suggestions_triggered = sum(1 for v in patterns_met.values() if v)
+    total_feedback = step2_corrections + step5_edits + step6_incorrect
+
+    return {
+        "step_feedback": {
+            "step2_corrections": step2_corrections,
+            "step5_edits": step5_edits,
+            "step6_incorrect": step6_incorrect,
+            "total": total_feedback,
+        },
+        "patterns_met": patterns_met,
+        "suggestions_triggered": suggestions_triggered,
+        "determinism": {
+            "total_steps": total_steps,
+            "deterministic_steps": det_steps,
+            "probabilistic_steps": prob_steps,
+            "rate": det_rate,
+        },
+    }
