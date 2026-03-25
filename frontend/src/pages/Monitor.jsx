@@ -100,6 +100,25 @@ function IntentFeedback({ entryId, initial, onSaved }) {
 // ── Step 5 draft feedback ────────────────────────────────────────────────────
 function DraftFeedback({ entryId, initial, onSaved }) {
   const [state, setState] = useState(initial ? { submitted: true, ...initial } : {})
+  const [sending, setSending] = useState(false)
+
+  const sendApproval = async (bodyOverride) => {
+    setSending(true)
+    try {
+      await fetch('/api/email/approve-and-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_id: entryId,
+          draft_body: bodyOverride || state.draftBody,
+          draft_subject: state.draftSubject,
+        }),
+      })
+    } catch (e) {
+      console.error('approve-and-send failed:', e)
+    }
+    setSending(false)
+  }
 
   const submit = async (type, extra = {}) => {
     await fetch('/api/audit/step-feedback', {
@@ -107,13 +126,37 @@ function DraftFeedback({ entryId, initial, onSaved }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ entry_id: entryId, step: 5, feedback_type: type, data: extra }),
     })
+    if (type === 'approved') await sendApproval()
+    if (type === 'edited') await sendApproval(extra.edited_body)
     setState({ submitted: true, type, ...extra })
     onSaved?.()
   }
 
   if (state.submitted) {
-    const label = state.type === 'approved' ? '✓ Approved' : state.type === 'edited' ? `✏ Edited — "${state.edit_summary}"` : '✗ Rejected'
-    return <p className="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded mt-2 border border-slate-200">{label}</p>
+    const sent = state.type === 'approved' || state.type === 'edited'
+    const label = state.type === 'approved' ? '✓ Sent to supplier'
+      : state.type === 'edited' ? `✓ Sent (edited) — "${state.edit_summary}"`
+      : '✗ Rejected'
+    return (
+      <div className="flex items-center gap-3 mt-2">
+        <p className={`text-xs px-2 py-1 rounded border ${sent ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+          {label}
+        </p>
+        {!sent && (
+          <button
+            disabled={sending}
+            onClick={async () => {
+              await sendApproval()
+              setState((s) => ({ ...s, submitted: true, type: 'approved' }))
+            }}
+            className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded disabled:opacity-60"
+          >
+            {sending ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={11} />}
+            Approve &amp; send
+          </button>
+        )}
+      </div>
+    )
   }
   if (state.editing) {
     return (
@@ -131,21 +174,26 @@ function DraftFeedback({ entryId, initial, onSaved }) {
         />
         <div className="flex gap-1.5">
           <button
+            disabled={sending}
             onClick={() => submit('edited', { edit_summary: state.editNote || 'Response edited before sending', edited_body: state.edited })}
-            className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded"
-          ><Send size={11} /> Send edited version</button>
-          <button onClick={() => setState({})} className="text-xs px-3 py-1 border border-slate-200 rounded text-slate-500">Cancel</button>
+            className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded disabled:opacity-60"
+          >
+            {sending ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={11} />}
+            Send edited version
+          </button>
+          <button onClick={() => setState((s) => ({ draftBody: s.draftBody, draftSubject: s.draftSubject }))} className="text-xs px-3 py-1 border border-slate-200 rounded text-slate-500">Cancel</button>
         </div>
       </div>
     )
   }
   return (
     <div className="flex gap-2 mt-2">
-      <button onClick={() => submit('approved')} className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded">
-        <Check size={11} /> Approve &amp; send
+      <button disabled={sending} onClick={() => submit('approved')} className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded disabled:opacity-60">
+        {sending ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={11} />}
+        Approve &amp; send
       </button>
       <button
-        onClick={() => setState({ editing: true, original: state.draftBody })}
+        onClick={() => setState((s) => ({ ...s, editing: true, original: s.draftBody }))}
         className="flex items-center gap-1 text-xs px-3 py-1 border border-slate-200 text-slate-600 rounded hover:bg-slate-50"
       >
         <Pencil size={11} /> Edit
@@ -303,7 +351,7 @@ function StepCard({ step, entryId, onFeedbackSaved }) {
             <pre className="text-xs text-slate-600 whitespace-pre-wrap bg-white rounded-lg p-2.5 font-sans leading-relaxed border border-slate-200 max-h-36 overflow-y-auto">{r.draft_body}</pre>
             <DraftFeedback
               entryId={entryId}
-              initial={step.feedback ? { ...step.feedback, draftBody: r.draft_body } : { draftBody: r.draft_body }}
+              initial={step.feedback ? { ...step.feedback, draftBody: r.draft_body, draftSubject: r.draft_subject } : { draftBody: r.draft_body, draftSubject: r.draft_subject }}
               onSaved={onFeedbackSaved}
             />
           </div>

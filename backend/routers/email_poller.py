@@ -292,6 +292,8 @@ def get_recent():
 
 class ApproveRequest(BaseModel):
     entry_id: str
+    draft_body: str | None = None
+    draft_subject: str | None = None
 
 
 @router.post("/approve-and-send")
@@ -311,13 +313,28 @@ async def approve_and_send(req: ApproveRequest):
         return {"status": "already_sent"}
 
     draft = entry.get("draft_response")
+    # Fall back to the body provided by the frontend (for demo/pre-seeded entries)
+    if (not draft or not draft.get("body")) and req.draft_body:
+        draft = {
+            "body": req.draft_body,
+            "subject": req.draft_subject or f"Re: {entry.get('email_subject', '')}",
+        }
     if not draft or not draft.get("body"):
         raise HTTPException(status_code=400, detail="No draft response available to send")
+
+    to_addr = entry.get("email_from_addr", "")
+    if not to_addr:
+        # Demo/pre-seeded entry — mark as approved without sending a real email
+        entry["approved"] = True
+        entry["approved_at"] = datetime.now(timezone.utc).isoformat()
+        with open(AUDIT_LOG_PATH, "w") as f:
+            json.dump(audit_log, f, indent=2)
+        return {"status": "sent", "simulated": True}
 
     try:
         await gmail_service.send_reply(
             thread_id=entry.get("email_thread_id", ""),
-            to=entry.get("email_from_addr", ""),
+            to=to_addr,
             subject=draft.get("subject", f"Re: {entry.get('email_subject', '')}"),
             body=draft["body"],
             message_id=entry.get("email_message_id", ""),
