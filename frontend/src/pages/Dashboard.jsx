@@ -238,8 +238,11 @@ export default function Dashboard() {
   const totalSteps = sq?.determinism?.total_steps ?? 0
   const totalFeedback = sq?.step_feedback?.total ?? 0
   const step2 = sq?.step_feedback?.step2_corrections ?? 0
+  const step2confirm = sq?.step_feedback?.step2_confirmations ?? 0
   const step5 = sq?.step_feedback?.step5_edits ?? 0
+  const step5approvals = sq?.step_feedback?.step5_approvals ?? 0
   const step6 = sq?.step_feedback?.step6_incorrect ?? 0
+  const step6correct = sq?.step_feedback?.step6_correct ?? 0
   const suggestionsTriggered = sq?.suggestions_triggered ?? 0
   const patternsCount = Object.values(sq?.patterns_met ?? {}).filter(Boolean).length
 
@@ -355,8 +358,14 @@ export default function Dashboard() {
               stepNum={2}
               name="Intent Classification"
               type="PROBABILISTIC"
-              metric={`${step2} correction${step2 !== 1 ? 's' : ''} captured`}
-              metricColor={step2 >= 3 ? 'text-amber-600 font-medium' : 'text-slate-500'}
+              metric={
+                step2 > 0
+                  ? `${step2} correction${step2 !== 1 ? 's' : ''}${step2confirm > 0 ? ` · ${step2confirm} confirmed` : ''}`
+                  : step2confirm > 0
+                  ? `${step2confirm} marked correct`
+                  : 'No feedback yet'
+              }
+              metricColor={step2 >= 3 ? 'text-amber-600 font-medium' : step2confirm > 0 ? 'text-teal-600' : 'text-slate-400'}
             />
             <StepQualityCard
               stepNum={3}
@@ -374,15 +383,27 @@ export default function Dashboard() {
               stepNum={5}
               name="Draft / Escalate"
               type="PROBABILISTIC"
-              metric={`${step5} draft${step5 !== 1 ? 's' : ''} edited`}
-              metricColor={step5 >= 3 ? 'text-amber-600 font-medium' : 'text-slate-500'}
+              metric={
+                step5 > 0
+                  ? `${step5} draft${step5 !== 1 ? 's' : ''} edited${step5approvals > 0 ? ` · ${step5approvals} approved` : ''}`
+                  : step5approvals > 0
+                  ? `${step5approvals} approved`
+                  : 'No feedback yet'
+              }
+              metricColor={step5 >= 3 ? 'text-amber-600 font-medium' : step5approvals > 0 ? 'text-teal-600' : 'text-slate-400'}
             />
             <StepQualityCard
               stepNum={6}
               name="Data Finding"
               type="PROBABILISTIC"
-              metric={`${step6} finding${step6 !== 1 ? 's' : ''} incorrect`}
-              metricColor={step6 >= 2 ? 'text-amber-600 font-medium' : 'text-slate-500'}
+              metric={
+                step6 > 0
+                  ? `${step6} incorrect${step6correct > 0 ? ` · ${step6correct} confirmed` : ''}`
+                  : step6correct > 0
+                  ? `${step6correct} confirmed correct`
+                  : 'No feedback yet'
+              }
+              metricColor={step6 >= 2 ? 'text-amber-600 font-medium' : step6correct > 0 ? 'text-teal-600' : 'text-slate-400'}
             />
           </div>
         </div>
