@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Activity, Pencil } from 'lucide-react'
+import { Check, Activity, Pencil, Database, Landmark, Mail, MessageSquare, MessageCircle, CheckCircle } from 'lucide-react'
 import WorkflowMap from './WorkflowMap'
 import Participants from './Participants'
 import Systems from './Systems'
@@ -182,13 +182,39 @@ export default function SetupFlow() {
   )
 }
 
+// ── Static system cards shown in Systems read-only view ──────────────────────
+const SYSTEMS_LIST = [
+  { icon: Database,      iconColor: 'text-teal-600',    title: 'ERP System',       subtitle: 'Workday / Oracle / SAP / NetSuite',               status: 'simulated', label: 'Simulated',           note: 'Using sample invoice data for demo' },
+  { icon: Landmark,      iconColor: 'text-emerald-600', title: 'Bank Feed',        subtitle: 'Real-time payment confirmations & remittance data', status: 'simulated', label: 'Simulated',           note: 'Using sample bank transaction data for demo' },
+  { icon: Mail,          iconColor: 'text-blue-600',    title: 'Email — Gmail',    subtitle: 'ruchikumar111982@gmail.com',                        status: 'connected', label: 'Connected' },
+  { icon: MessageSquare, iconColor: 'text-purple-600',  title: 'Slack',            subtitle: 'auditoria-demo.slack.com — #ap-escalations',        status: 'connected', label: 'Webhook configured' },
+  { icon: MessageCircle, iconColor: 'text-green-600',   title: 'SMS / WhatsApp',   subtitle: 'Send payment alerts and escalation nudges via text', status: 'available', label: 'Not connected' },
+]
+
 // ── Read-only step view (when worker is already live) ────────────────────────
-function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBack }) {
+function ReadOnlyStep({ step, workflowData, fieldMap, policies: policiesProp, templates: templatesProp, onBack }) {
   const STEP_TITLES = ['Workflow', 'Systems', 'Policies', 'Templates']
+
+  // Fetch fresh data so the view is never empty due to stale parent state
+  const [policies, setPolicies] = useState(policiesProp)
+  const [templates, setTemplates] = useState(templatesProp)
+
+  useEffect(() => {
+    if (step === 2 || step === 3) {
+      fetch('/api/workflow/workers')
+        .then((r) => r.json())
+        .then((workers) => {
+          const worker = workers.find((w) => w.worker_id === 'worker-001')
+          if (!worker) return
+          if (step === 2 && worker.policies?.length) setPolicies(worker.policies)
+          if (step === 3 && worker.templates?.length) setTemplates(worker.templates)
+        })
+        .catch(() => {})
+    }
+  }, [step])
 
   const renderContent = () => {
     if (step === 0) {
-      // Workflow
       const steps = workflowData?.steps || []
       return (
         <div className="space-y-4">
@@ -227,32 +253,61 @@ function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBac
     }
 
     if (step === 1) {
-      // Systems / Field Map
       return (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm font-semibold text-slate-800">ERP Field Mapping</p>
-            <p className="text-xs text-slate-400 mt-0.5">Workday — {fieldMap.length} fields mapped</p>
-          </div>
-          {fieldMap.length === 0 ? (
-            <p className="p-5 text-sm text-slate-400">No field map saved.</p>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {fieldMap.map((f) => (
-                <div key={f.field} className="grid grid-cols-3 gap-3 px-5 py-2.5 text-xs">
-                  <span className="font-mono text-teal-700">{f.field}</span>
-                  <span className="font-mono text-slate-400">{f.path || '—'}</span>
-                  <span className="text-slate-600">{f.sample || '—'}</span>
+        <div className="space-y-3">
+          {/* System connection cards */}
+          {SYSTEMS_LIST.map((sys) => {
+            const Icon = sys.icon
+            const isConnected = sys.status === 'connected' || sys.status === 'simulated'
+            const badgeStyle = sys.status === 'simulated'
+              ? 'text-violet-600 bg-violet-50 border-violet-200'
+              : sys.status === 'connected'
+              ? 'text-teal-600 bg-teal-50 border-teal-200'
+              : 'text-slate-400 bg-slate-50 border-slate-200'
+            return (
+              <div key={sys.title} className={`bg-white rounded-xl border p-4 flex items-start justify-between ${sys.status === 'available' ? 'border-dashed border-slate-200' : 'border-slate-200'}`}>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
+                    <Icon size={18} className={sys.iconColor} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{sys.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{sys.subtitle}</p>
+                    {sys.note && <p className="text-xs text-slate-400 mt-0.5 italic">{sys.note}</p>}
+                  </div>
                 </div>
-              ))}
+                <span className={`flex items-center gap-1.5 text-xs font-medium border px-2.5 py-1 rounded-full flex-shrink-0 ml-4 ${badgeStyle}`}>
+                  {isConnected && <CheckCircle size={11} />} {sys.label}
+                </span>
+              </div>
+            )
+          })}
+
+          {/* ERP field mapping */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <p className="text-sm font-semibold text-slate-800">ERP Field Mapping</p>
+              <p className="text-xs text-slate-400 mt-0.5">Workday — {fieldMap.length} fields mapped</p>
             </div>
-          )}
+            {fieldMap.length === 0 ? (
+              <p className="p-5 text-sm text-slate-400">No field map saved.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {fieldMap.map((f) => (
+                  <div key={f.field} className="grid grid-cols-3 gap-3 px-5 py-2.5 text-xs">
+                    <span className="font-mono text-teal-700">{f.field}</span>
+                    <span className="font-mono text-slate-400">{f.path || '—'}</span>
+                    <span className="text-slate-600">{f.sample || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )
     }
 
     if (step === 2) {
-      // Policies
       return (
         <div className="space-y-3">
           {policies.length === 0 ? (
@@ -272,15 +327,21 @@ function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBac
     }
 
     if (step === 3) {
-      // Templates
       return (
         <div className="space-y-3">
           {templates.length === 0 ? (
             <p className="text-sm text-slate-400">No templates configured.</p>
           ) : templates.map((t, i) => (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 px-5 py-4">
-              <p className="text-sm font-semibold text-slate-800 mb-1">{t.name || t.title || `Template ${i + 1}`}</p>
-              {t.content && <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans leading-relaxed">{t.content}</pre>}
+            <div key={t.id || i} className="bg-white rounded-xl border border-slate-200 px-5 py-4">
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-sm font-semibold text-slate-800">{t.name || t.title || `Template ${i + 1}`}</p>
+                {t.tag && (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    t.tag === 'Autonomous' ? 'bg-teal-50 text-teal-600 border border-teal-200' : 'bg-violet-50 text-violet-600 border border-violet-200'
+                  }`}>{t.tag}</span>
+                )}
+              </div>
+              {t.content && <pre className="text-xs text-slate-500 whitespace-pre-wrap font-sans leading-relaxed bg-slate-50 rounded-lg p-3 max-h-40 overflow-y-auto">{t.content}</pre>}
             </div>
           ))}
         </div>
