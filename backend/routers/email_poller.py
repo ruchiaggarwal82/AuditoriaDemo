@@ -319,13 +319,15 @@ async def approve_and_send(req: ApproveRequest):
     if entry.get("approved"):
         return {"status": "already_sent"}
 
-    draft = entry.get("draft_response")
-    # Fall back to the body provided by the frontend (for demo/pre-seeded entries)
-    if (not draft or not draft.get("body")) and req.draft_body:
+    # Always prefer the draft body the AP clerk reviewed in the UI (req.draft_body).
+    # Fall back to stored draft_response only when the frontend sent nothing.
+    if req.draft_body:
         draft = {
             "body": req.draft_body,
             "subject": req.draft_subject or f"Re: {entry.get('email_subject', '')}",
         }
+    else:
+        draft = entry.get("draft_response")
     if not draft or not draft.get("body"):
         raise HTTPException(status_code=400, detail="No draft response available to send")
 
