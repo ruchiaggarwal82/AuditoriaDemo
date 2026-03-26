@@ -111,7 +111,7 @@ async def poll_and_process():
                     intent = classification.get("intent", "UNKNOWN")
                     is_short_pay = intent == "SHORT_PAY"
                     is_invoice_approval = intent == "INVOICE_APPROVAL"
-                    requires_human = erp_data and erp_data.get("status") in ("on_hold",)
+                    requires_human = erp_data and erp_data.get("status") in ("on_hold", "short_paid")
                     high_confidence = confidence >= 0.85
 
                     if high_confidence and erp_data and not requires_human and not is_short_pay and not is_invoice_approval:
@@ -158,7 +158,11 @@ async def poll_and_process():
                         elif is_invoice_approval:
                             escalation_reason = "Invoice approval requires human authorization (POL-004)"
                         elif requires_human:
-                            escalation_reason = "Invoice is on hold — requires AP team review"
+                            status = erp_data.get("status", "")
+                            if status == "short_paid":
+                                escalation_reason = "Invoice shows short payment — dispute requires AP Manager review before responding"
+                            else:
+                                escalation_reason = "Invoice is on hold — requires AP team review"
                         elif not erp_data:
                             escalation_reason = "Invoice not found in ERP system"
                         else:
