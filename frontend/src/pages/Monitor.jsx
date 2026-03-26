@@ -145,10 +145,7 @@ function DraftFeedback({ entryId, initial, onSaved }) {
         {!sent && (
           <button
             disabled={sending}
-            onClick={async () => {
-              await sendApproval()
-              setState((s) => ({ ...s, submitted: true, type: 'approved' }))
-            }}
+            onClick={() => submit('approved')}
             className="flex items-center gap-1 text-xs px-3 py-1 bg-teal-500 text-white rounded disabled:opacity-60"
           >
             {sending ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={11} />}
