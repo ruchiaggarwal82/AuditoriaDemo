@@ -16,6 +16,22 @@ const STEPS = [
   { id: 'review',     label: 'Review & Launch' },
 ]
 
+// Fallback policies — always enforced by the agent even if workers.json is empty
+const _DEFAULT_POLICIES = [
+  { policy_id: 'POL-001', policy_name: 'High-value invoice escalation',    trigger: "Always notify the AP Manager when invoice amount exceeds $25,000, even if auto-response is possible" },
+  { policy_id: 'POL-002', policy_name: 'On-hold invoice escalation',        trigger: "Never auto-respond to invoices with status 'on_hold' — always escalate to AP Manager for review" },
+  { policy_id: 'POL-003', policy_name: 'Low confidence escalation',         trigger: "If intent classification confidence is below 70%, escalate to the AP team instead of auto-responding" },
+  { policy_id: 'POL-004', policy_name: 'Invoice approval authorization',    trigger: "Never auto-respond to invoice approval requests — all INVOICE_APPROVAL intents require human sign-off from an AP Manager before any action is taken" },
+]
+
+// Fallback templates — always available even if workers.json has no templates
+const _DEFAULT_TEMPLATES = [
+  { id: 'tmpl-001', name: 'Payment Status — Autonomous', tag: 'Autonomous', content: `Dear [Supplier Name],\n\nThank you for reaching out regarding invoice [Invoice Number].\n\nWe can confirm that payment of [Amount] is scheduled for [Payment Date] via [Payment Method] (Ref: [Reference Number]). Please allow 1–2 business days for the funds to reflect in your account.\n\nIf you have any further questions, don't hesitate to reach out.\n\nBest regards,\nAccounts Payable Team` },
+  { id: 'tmpl-002', name: 'Invoice Approval Confirmation — Autonomous', tag: 'Autonomous', content: `Dear [Supplier Name],\n\nThank you for following up on invoice [Invoice Number].\n\nWe can confirm your invoice has been received and is currently [approved and queued for payment / under review with our finance team]. You can expect payment by [Expected Date].\n\nWarm regards,\nAccounts Payable Team` },
+  { id: 'tmpl-003', name: 'Short Payment Explanation — Agent Drafted', tag: 'Agent drafted', content: `Dear [Supplier Name],\n\nThank you for reaching out regarding the payment for invoice [Invoice Number].\n\nWe acknowledge that a payment of [Amount Paid] was made against the invoiced amount of [Invoice Amount]. Our team is reviewing the discrepancy and will provide a full breakdown within 2 business days.\n\nBest regards,\nAccounts Payable Team` },
+  { id: 'tmpl-004', name: 'After-Hours Acknowledgment — Autonomous', tag: 'Autonomous', content: `Dear [Supplier Name],\n\nThank you for contacting Accounts Payable regarding invoice [Invoice Number].\n\nWe have received your message and will respond during our business hours (Monday–Friday, 9am–6pm). You can expect a response by the next business day.\n\nBest regards,\nAccounts Payable Team` },
+]
+
 export default function SetupFlow() {
   const [currentStep, setCurrentStep] = useState(0)
   const [workflowData, setWorkflowData] = useState(null)
@@ -49,8 +65,12 @@ export default function SetupFlow() {
             gaps_identified: worker.gaps_identified || [],
           })
           setParticipants(worker.participants || [])
-          setPolicies(worker.policies || [])
-          setTemplates(worker.templates || [])
+          setPolicies(worker.policies?.length ? worker.policies : _DEFAULT_POLICIES)
+          setTemplates(worker.templates?.length ? worker.templates : _DEFAULT_TEMPLATES)
+        } else {
+          // API failed but localStorage says worker is live — use defaults
+          setPolicies(_DEFAULT_POLICIES)
+          setTemplates(_DEFAULT_TEMPLATES)
         }
         setFieldMap(fmData.field_map || [])
         setAlreadyLive(true)
@@ -192,26 +212,8 @@ const SYSTEMS_LIST = [
 ]
 
 // ── Read-only step view (when worker is already live) ────────────────────────
-function ReadOnlyStep({ step, workflowData, fieldMap, policies: policiesProp, templates: templatesProp, onBack }) {
+function ReadOnlyStep({ step, workflowData, fieldMap, policies, templates, onBack }) {
   const STEP_TITLES = ['Workflow', 'Systems', 'Policies', 'Templates']
-
-  // Fetch fresh data so the view is never empty due to stale parent state
-  const [policies, setPolicies] = useState(policiesProp)
-  const [templates, setTemplates] = useState(templatesProp)
-
-  useEffect(() => {
-    if (step === 2 || step === 3) {
-      fetch('/api/workflow/workers')
-        .then((r) => r.json())
-        .then((workers) => {
-          const worker = workers.find((w) => w.worker_id === 'worker-001')
-          if (!worker) return
-          if (step === 2 && worker.policies?.length) setPolicies(worker.policies)
-          if (step === 3 && worker.templates?.length) setTemplates(worker.templates)
-        })
-        .catch(() => {})
-    }
-  }, [step])
 
   const renderContent = () => {
     if (step === 0) {
